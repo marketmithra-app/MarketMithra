@@ -24,7 +24,7 @@ from typing import Any
 
 import yfinance as yf
 from anthropic import Anthropic
-from curl_cffi import requests as curl_requests
+import requests as curl_requests  # std requests — same API, no curl_cffi needed on cloud
 
 log = logging.getLogger(__name__)
 

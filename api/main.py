@@ -36,10 +36,10 @@ if _env_file.exists():
             if not os.environ.get(_k):
                 os.environ[_k] = _v
 
+import requests as std_requests
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from curl_cffi import requests as curl_requests
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -54,16 +54,27 @@ import stock_dna as _dna_module
 import darvas as _darvas_module
 import mithra_agent as _mithra
 
-# curl_cffi sessions are NOT thread-safe — sharing one across concurrent
-# ThreadPoolExecutor workers causes hangs/corruption.  Use threading.local()
-# so each OS thread gets its own session, created lazily on first use.
+# One requests.Session per OS thread — thread-safe, no curl_cffi version issues.
+# On cloud IPs (Railway/AWS), Yahoo Finance doesn't require TLS impersonation.
 _thread_local = threading.local()
 
+_YF_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+}
 
-def _get_yf_session() -> curl_requests.Session:
-    """Return the current thread's curl_cffi session, creating it if needed."""
+
+def _get_yf_session() -> std_requests.Session:
+    """Return the current thread's requests session, creating it if needed."""
     if not hasattr(_thread_local, "yf_session"):
-        _thread_local.yf_session = curl_requests.Session(impersonate="chrome")
+        s = std_requests.Session()
+        s.headers.update(_YF_HEADERS)
+        _thread_local.yf_session = s
     return _thread_local.yf_session
 
 NIFTY500_TICKER = "^CRSLDX"   # Nifty 500 Index on yfinance
