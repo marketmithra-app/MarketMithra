@@ -36,7 +36,7 @@ if _env_file.exists():
             if not os.environ.get(_k):
                 os.environ[_k] = _v
 
-import requests as std_requests
+from curl_cffi import requests as cffi_requests  # TLS browser fingerprint for Yahoo Finance
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -54,27 +54,15 @@ import stock_dna as _dna_module
 import darvas as _darvas_module
 import mithra_agent as _mithra
 
-# One requests.Session per OS thread — thread-safe, no curl_cffi version issues.
-# On cloud IPs (Railway/AWS), Yahoo Finance doesn't require TLS impersonation.
+# One curl_cffi session per OS thread — thread-safe + Chrome TLS fingerprint so
+# Yahoo Finance doesn't block Railway/cloud datacenter IPs via Cloudflare.
 _thread_local = threading.local()
 
-_YF_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-}
 
-
-def _get_yf_session() -> std_requests.Session:
-    """Return the current thread's requests session, creating it if needed."""
+def _get_yf_session() -> cffi_requests.Session:
+    """Return the current thread's curl_cffi session (Chrome TLS fingerprint)."""
     if not hasattr(_thread_local, "yf_session"):
-        s = std_requests.Session()
-        s.headers.update(_YF_HEADERS)
-        _thread_local.yf_session = s
+        _thread_local.yf_session = cffi_requests.Session(impersonate="chrome110")
     return _thread_local.yf_session
 
 NIFTY500_TICKER = "^CRSLDX"   # Nifty 500 Index on yfinance

@@ -29,7 +29,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import requests as curl_requests  # std requests — same API, no curl_cffi needed on cloud
+from curl_cffi import requests as curl_requests  # browser TLS fingerprint needed for NSE
 
 log = logging.getLogger(__name__)
 
