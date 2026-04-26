@@ -42,7 +42,8 @@ api/.cache/
 api/data/*.db
 api/data/*.db-shm
 api/data/*.db-wal
-api/*.json          # snapshot dumps written during dev (reliance.json etc.)
+# snapshot dumps written during dev (reliance.json, tcs.json, etc.)
+api/*.json
 
 # ── Claude Code internal ───────────────────────────────────────────────────────
 .claude/
