@@ -24,7 +24,6 @@ from typing import Any
 
 import yfinance as yf
 from anthropic import Anthropic
-import requests as curl_requests  # std requests — same API, no curl_cffi needed on cloud
 
 log = logging.getLogger(__name__)
 
@@ -132,7 +131,7 @@ def get_spend_today() -> dict[str, Any]:
 
 
 # ── main entry point ────────────────────────────────────────────────────────
-def get_ai_news(symbol: str, yf_session: curl_requests.Session) -> dict[str, Any]:
+def get_ai_news(symbol: str) -> dict[str, Any]:
     """Return AI-scored news sentiment for *symbol*.
     Falls back gracefully (score=0) when API key absent, news unavailable,
     daily cap hit, or Claude API is unhappy."""
@@ -169,7 +168,10 @@ def get_ai_news(symbol: str, yf_session: curl_requests.Session) -> dict[str, Any
 
     # 4. Fetch headlines.
     try:
-        ticker = yf.Ticker(sym, session=yf_session)
+        # No custom session — yfinance manages its own internally.
+        # Passing a curl_cffi session triggers a .impersonate.name AttributeError
+        # in curl_cffi >=0.7; news falls back gracefully to score=0 on cloud IPs.
+        ticker = yf.Ticker(sym)
         raw_news = ticker.news or []
     except Exception as e:
         log.warning(f"yfinance news fetch failed for {sym}: {e}")

@@ -406,7 +406,7 @@ def build_snapshot(symbol: str, skip_synthesis: bool = False) -> dict[str, Any]:
         delivery["score"] = round(blended_delivery, 2)
     delivery["delivery_trend"] = _trend_result
 
-    ai_news = get_ai_news(symbol, _get_yf_session())
+    ai_news = get_ai_news(symbol)
 
     weighted = (
         rs["score"] * FUSION_WEIGHTS["rs"]
