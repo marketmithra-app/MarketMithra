@@ -44,7 +44,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from bhavcopy import get_delivery_series, delivery_trend
+from bhavcopy import get_delivery_series, delivery_trend, get_nse_ohlcv
 from ai_news import get_ai_news, get_spend_today
 from ai_synthesis import get_ai_synthesis
 from rrg import compute_rrg, SECTOR_MAP
@@ -137,10 +137,8 @@ def fetch_history(symbol: str) -> pd.DataFrame:
     hit = _cache.get(symbol)
     if hit and now - hit[0] < CACHE_TTL_SECONDS:
         return hit[1]
-    df = yf.Ticker(symbol, session=_get_yf_session()).history(
-        period=HISTORY_PERIOD, interval=HISTORY_INTERVAL, auto_adjust=False
-    )
-    if df.empty:
+    df = get_nse_ohlcv(symbol, n_days=365)
+    if df is None or df.empty:
         raise HTTPException(status_code=404, detail=f"No data for {symbol}")
     df = df.dropna(subset=["Close"])
     _cache[symbol] = (now, df)
