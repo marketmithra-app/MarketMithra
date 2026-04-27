@@ -44,7 +44,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from bhavcopy import get_delivery_series, delivery_trend, get_nse_ohlcv
+from services.data import get_delivery_series, delivery_trend, get_nse_ohlcv
 from ai_news import get_ai_news, get_spend_today
 from ai_synthesis import get_ai_synthesis
 from rrg import compute_rrg, SECTOR_MAP

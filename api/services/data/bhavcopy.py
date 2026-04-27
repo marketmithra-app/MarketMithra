@@ -33,7 +33,7 @@ from curl_cffi import requests as curl_requests  # browser TLS fingerprint neede
 
 log = logging.getLogger(__name__)
 
-_CACHE_DIR = Path(__file__).parent / "cache" / "bhavcopy"
+_CACHE_DIR = Path(__file__).parent.parent.parent / "cache" / "bhavcopy"
 _CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # In-memory DataFrame cache — keyed by date ISO string.
@@ -397,7 +397,7 @@ def _fetch_index_csv(d: date) -> "pd.DataFrame | None":
 
 
 def _fetch_index_csv_uncached(d: date) -> "pd.DataFrame | None":
-    cache_dir = Path(__file__).parent / "cache" / "indices"
+    cache_dir = Path(__file__).parent.parent.parent / "cache" / "indices"
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_file = cache_dir / f"{d.isoformat()}.csv"
 

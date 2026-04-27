@@ -1,4 +1,4 @@
-"""Tests for api/bhavcopy.py — hermetic, no network, no real cache reads.
+"""Tests for services/data/bhavcopy.py — hermetic, no network, no real cache reads.
 
 Only exercises functions currently defined in bhavcopy.py:
     - fetch_bhavcopy       (mocked; weekend short-circuit is pure)
@@ -16,7 +16,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-import bhavcopy
+import services.data.bhavcopy as bhavcopy
 
 
 @pytest.fixture(autouse=True)
