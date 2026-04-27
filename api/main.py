@@ -49,7 +49,7 @@ from services.ai import get_ai_news, get_spend_today, get_ai_synthesis
 from services.core import (
     ema, clamp, relative_strength, ema_stack,
     momentum_20d, volume_vwap, delivery_real, calc_price_levels,
-    TAIL_SPARK_LEN,
+    TAIL_SPARK_LEN, FUSION_WEIGHTS, fuse_scores,
 )
 from rrg import compute_rrg, SECTOR_MAP
 import history
@@ -149,14 +149,6 @@ def fetch_history(symbol: str) -> pd.DataFrame:
 
 
 # ─────────────────────────── snapshot assembly ──────────────────────────────
-FUSION_WEIGHTS = {
-    "rs": 0.20,
-    "delivery": 0.20,
-    "ema": 0.18,
-    "momentum": 0.17,
-    "volume": 0.15,
-    "aiNews": 0.10,
-}
 
 
 def build_snapshot(symbol: str, skip_synthesis: bool = False) -> dict[str, Any]:
@@ -182,16 +174,16 @@ def build_snapshot(symbol: str, skip_synthesis: bool = False) -> dict[str, Any]:
 
     ai_news = get_ai_news(symbol)
 
-    weighted = (
-        rs["score"] * FUSION_WEIGHTS["rs"]
-        + delivery["score"] * FUSION_WEIGHTS["delivery"]
-        + ema["score"] * FUSION_WEIGHTS["ema"]
-        + mom["score"] * FUSION_WEIGHTS["momentum"]
-        + vv["score"] * FUSION_WEIGHTS["volume"]
-        + ai_news["score"] * FUSION_WEIGHTS["aiNews"]
-    )
-    probability = round(0.5 + weighted / 2, 2)
-    verdict = "BUY" if probability >= 0.6 else "SELL" if probability <= 0.4 else "HOLD"
+    fusion_result = fuse_scores({
+        "rs":       rs["score"],
+        "delivery": delivery["score"],
+        "ema":      ema["score"],
+        "momentum": mom["score"],
+        "volume":   vv["score"],
+        "aiNews":   ai_news["score"],
+    })
+    probability = fusion_result["probability"]
+    verdict     = fusion_result["verdict"]
 
     name = UNIVERSE_NAMES.get(symbol, symbol.replace(".NS", "").replace(".BO", ""))
     price = round(float(close.iloc[-1]), 2)
@@ -203,7 +195,7 @@ def build_snapshot(symbol: str, skip_synthesis: bool = False) -> dict[str, Any]:
         "volume": vv,
         "aiNews": ai_news,
     }
-    fusion_data = {"probability": probability, "verdict": verdict, "weights": FUSION_WEIGHTS}
+    fusion_data = fusion_result
 
     # Always compute algorithmic levels — cheap, no API call.
     price_levels = calc_price_levels(price, ema, vv, verdict)

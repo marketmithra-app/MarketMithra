@@ -56,3 +56,36 @@ def test_volume_vwap_returns_required_keys():
     result = volume_vwap(close, volume)
     for key in ["vwap20", "score", "aboveVwap", "volumeTrend"]:
         assert key in result
+
+
+def test_fuse_scores_buy_verdict():
+    from services.core.fusion import fuse_scores
+    # All strong positive scores → BUY
+    scores = {"rs": 1.0, "delivery": 1.0, "ema": 1.0, "momentum": 1.0, "volume": 1.0, "aiNews": 1.0}
+    result = fuse_scores(scores)
+    assert result["verdict"] == "BUY"
+    assert result["probability"] >= 0.60
+
+
+def test_fuse_scores_sell_verdict():
+    from services.core.fusion import fuse_scores
+    # All strong negative scores → SELL
+    scores = {"rs": -1.0, "delivery": -1.0, "ema": -1.0, "momentum": -1.0, "volume": -1.0, "aiNews": -1.0}
+    result = fuse_scores(scores)
+    assert result["verdict"] == "SELL"
+    assert result["probability"] <= 0.40
+
+
+def test_fuse_scores_hold_verdict():
+    from services.core.fusion import fuse_scores
+    # All neutral → HOLD
+    scores = {"rs": 0.0, "delivery": 0.0, "ema": 0.0, "momentum": 0.0, "volume": 0.0, "aiNews": 0.0}
+    result = fuse_scores(scores)
+    assert result["verdict"] == "HOLD"
+    assert result["probability"] == 0.50
+
+
+def test_fuse_scores_weights_sum_to_one():
+    from services.core.fusion import FUSION_WEIGHTS
+    total = sum(FUSION_WEIGHTS.values())
+    assert abs(total - 1.0) < 0.001
