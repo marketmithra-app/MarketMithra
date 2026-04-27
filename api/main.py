@@ -815,7 +815,7 @@ def get_panic(response: Response) -> dict[str, Any]:
     global _panic_cache, _panic_cache_ts
     now = time.time()
     if _panic_cache is None or (now - _panic_cache_ts) > 1800:
-        data = _panic_module.compute_panic()
+        data = _panic_module.compute_panic(session=_get_yf_session())
         data["history"] = _panic_module.get_panic_history(30)
         _panic_module._save_today(data)
         _panic_cache = data
@@ -854,7 +854,7 @@ def darvas_analysis(symbol: str, response: Response) -> dict[str, Any]:
     if sym not in UNIVERSE_NAMES:
         raise HTTPException(status_code=404, detail=f"Unknown symbol: {sym}")
     name = UNIVERSE_NAMES.get(sym, sym.replace(".NS", "").replace(".BO", ""))
-    result = _darvas_module.get_darvas(sym, name)
+    result = _darvas_module.get_darvas(sym, name, session=_get_yf_session())
     if result is None:
         raise HTTPException(status_code=503, detail="Darvas data unavailable")
     return result

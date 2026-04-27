@@ -104,14 +104,16 @@ def _set_cached(symbol: str, data: dict) -> None:
 
 # ─────────────────────────── data fetching ──────────────────────────────────
 
-def _fetch_data(symbol: str) -> pd.DataFrame | None:
+def _fetch_data(symbol: str, session=None) -> pd.DataFrame | None:
     """
     Download 1 year of daily OHLCV for symbol.
     Returns DataFrame with Open, High, Low, Close, Volume columns (no NaN rows),
     or None on failure.
+
+    Pass a curl_cffi session to bypass Yahoo Finance bot detection in production.
     """
     try:
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol, session=session) if session is not None else yf.Ticker(symbol)
         df = ticker.history(period="1y", auto_adjust=True)
         if df.empty:
             log.warning("darvas: empty data for %s", symbol)
@@ -253,10 +255,13 @@ def _find_boxes(df: pd.DataFrame) -> list[dict]:
 
 # ─────────────────────────── public API ──────────────────────────────────────
 
-def get_darvas(symbol: str, name: str | None = None) -> dict | None:
+def get_darvas(symbol: str, name: str | None = None, session=None) -> dict | None:
     """
     Main entry point. Returns Darvas Box analysis for the symbol.
     Cached 24 h keyed by IST date. Returns None if data fetch fails.
+
+    Pass a curl_cffi `session` to use Chrome TLS fingerprinting (required in
+    production where Yahoo Finance blocks plain requests).
     """
     cached = _get_cached(symbol)
     if cached:
@@ -265,7 +270,7 @@ def get_darvas(symbol: str, name: str | None = None) -> dict | None:
     display_name = name or symbol.replace(".NS", "").replace(".BO", "")
 
     try:
-        df = _fetch_data(symbol)
+        df = _fetch_data(symbol, session=session)
         if df is None:
             return None
 

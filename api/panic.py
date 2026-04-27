@@ -149,12 +149,13 @@ def score_to_zone(s: float) -> str:
 
 # ─────────────────────────── component 1: India VIX ─────────────────────────
 
-def _compute_vix_component() -> tuple[float, float]:
+def _compute_vix_component(session=None) -> tuple[float, float]:
     """Returns (vix_current, vix_score). Falls back to (None, 50.0) on error."""
     try:
-        vix_hist = yf.download(
-            "^INDIAVIX", period="35d", progress=False, auto_adjust=True
-        )
+        kwargs: dict = dict(period="35d", progress=False, auto_adjust=True)
+        if session is not None:
+            kwargs["session"] = session
+        vix_hist = yf.download("^INDIAVIX", **kwargs)
         close_col = vix_hist["Close"] if "Close" in vix_hist.columns else vix_hist.iloc[:, 0]
         vix_current = float(close_col.dropna().iloc[-1])
         vix_score = max(0.0, min(100.0, (vix_current - 11.0) / (25.0 - 11.0) * 100.0))
@@ -166,20 +167,17 @@ def _compute_vix_component() -> tuple[float, float]:
 
 # ─────────────────────────── component 2 & 4: multi-symbol price data ───────
 
-def _fetch_multi_closes() -> "pd.DataFrame | None":
+def _fetch_multi_closes(session=None) -> "pd.DataFrame | None":
     """Single yfinance download for all Nifty 50 symbols over 210 days.
 
     Returns a DataFrame with symbols as columns and dates as index,
     or None on total failure.
     """
     try:
-        raw = yf.download(
-            _NIFTY50_SYMBOLS,
-            period="210d",
-            progress=False,
-            auto_adjust=True,
-            group_by="ticker",
-        )
+        kwargs: dict = dict(period="210d", progress=False, auto_adjust=True, group_by="ticker")
+        if session is not None:
+            kwargs["session"] = session
+        raw = yf.download(_NIFTY50_SYMBOLS, **kwargs)
         # yfinance returns MultiIndex columns (ticker, OHLCV) for multi-symbol downloads.
         # Extract just Close prices — result columns = ticker symbols.
         if isinstance(raw.columns, pd.MultiIndex):
@@ -286,7 +284,7 @@ def _compute_momentum_component(closes: "pd.DataFrame | None") -> tuple[float, f
 
 # ─────────────────────────── public API ─────────────────────────────────────
 
-def compute_panic() -> dict[str, Any]:
+def compute_panic(session=None) -> dict[str, Any]:
     """Compute the full Panic-O-Meter snapshot. Expensive — caller should cache.
 
     Returns a dict matching the StockSnapshot shape:
@@ -294,15 +292,16 @@ def compute_panic() -> dict[str, Any]:
         score, zone, components: {vix, breadth, delivery, momentum},
         history, as_of, computed_at_utc
     }
+    Pass a curl_cffi `session` to use Chrome TLS fingerprinting in production.
     """
     computed_at_utc = datetime.now(timezone.utc).isoformat()
     as_of = _ist_today_ymd()
 
     # ── Component 1: VIX ────────────────────────────────────────────────────
-    vix_value, vix_score = _compute_vix_component()
+    vix_value, vix_score = _compute_vix_component(session=session)
 
     # ── Components 2 & 4 share one multi-symbol download ────────────────────
-    closes = _fetch_multi_closes()
+    closes = _fetch_multi_closes(session=session)
 
     # ── Component 2: Market breadth ─────────────────────────────────────────
     pct_above_200, breadth_score = _compute_breadth_component(closes)
