@@ -230,7 +230,7 @@ def chat(
         reply = response.content[0].text
         # pipe into shared spend ledger (same one used by ai_news + ai_synthesis)
         try:
-            import ai_news as _ai_news
+            import services.ai.news as _ai_news
             usage = getattr(response, "usage", None)
             if usage:
                 in_tok = int(getattr(usage, "input_tokens", 0))

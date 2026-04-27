@@ -79,3 +79,17 @@ api/  (FastAPI + uvicorn, Python 3, yfinance, Anthropic SDK)
 
 - **API** → Railway (`api/railway.toml`; start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`)
 - **Web** → Vercel (zero-config Next.js)
+
+## Agent Roles
+
+Three Claude Code session roles. Each has its own CLAUDE.md with detailed rules.
+
+| Agent | Home | KPI | CLAUDE.md |
+|---|---|---|---|
+| 📊 FinanceAgent | `docs/finance/` | Signal accuracy >65% | `docs/finance/CLAUDE.md` |
+| ⚙️ TechAgent | `api/` | API reliability + P95 latency | `api/CLAUDE.md` |
+| 🌐 FrontendAgent | `web/` | UX clarity + Core Web Vitals | `web/CLAUDE.md` |
+
+**Session end rule (all agents):** Save key decisions and discoveries to claude-mem under project "MaddyFlow" before closing the session.
+
+**Graduation path:** When a second developer joins, TechAgent splits into DataAgent (`api/services/data/`), AIAgent (`api/services/ai/`), and ComputeAgent (`api/services/core/`). Folder structure already supports this.

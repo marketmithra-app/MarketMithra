@@ -43,7 +43,7 @@ _client: Anthropic | None = None
 
 # ── shared spend ledger (imports from ai_news at runtime to avoid circular) ─
 def _get_spend_module():
-    import ai_news  # lazy import — avoids circular at module level
+    import services.ai.news as ai_news  # lazy import — avoids circular at module level
     return ai_news
 
 
@@ -98,7 +98,7 @@ def _fallback(reason: str = "unavailable") -> dict[str, Any]:
 
 def _daily_cap_reached() -> bool:
     try:
-        from ai_news import _DAILY_CAP, _SPEND, _today
+        from services.ai.news import _DAILY_CAP, _SPEND, _today
         day = _SPEND.get(_today(), {})
         return int(day.get("calls", 0)) >= _DAILY_CAP
     except Exception:
