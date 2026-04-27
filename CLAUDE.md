@@ -40,16 +40,17 @@ api/  (FastAPI + uvicorn, Python 3, yfinance, Anthropic SDK)
 1. Frontend calls `GET /snapshot/{symbol}` (e.g. `TCS.NS`)
 2. `api/main.py → build_snapshot()` fetches 1-year daily candles via **yfinance** and computes all six indicators
 3. Scores (each ∈ [-1, +1]) are fused: weighted sum → sigmoid → probability ∈ [0, 1] → verdict
-4. `api/ai_synthesis.py` calls Claude Haiku for a 2–3 sentence explanation + bull/bear/risk + price targets
+4. `api/services/ai/synthesis.py` calls Claude Haiku for a 2–3 sentence explanation + bull/bear/risk + price targets
 5. Full `StockSnapshot` JSON returned; frontend renders it as a ReactFlow node graph
 
 ### Backend key files
 | File | Responsibility |
 |---|---|
-| `api/main.py` | FastAPI app, all indicator math, fusion logic, `/ranked`, `/screener`, `/snapshot` |
-| `api/ai_news.py` | Fetch headlines via yfinance → Claude Haiku sentiment score [-1, +1] |
-| `api/ai_synthesis.py` | Claude Haiku full-text explanation of verdict (12 h disk cache) |
-| `api/bhavcopy.py` | NSE bhavcopy CSV fetcher → delivery % per symbol (in-RAM DataFrame cache) |
+| `api/main.py` | FastAPI routing only — imports from service packages below |
+| `api/services/data/` | NSE bhavcopy CSV fetcher → delivery %, OHLCV cache (TechAgent) |
+| `api/services/ai/` | Claude Haiku news sentiment + synthesis, cost tracking (TechAgent) |
+| `api/services/core/indicators.py` | EMA, VWAP, RS, momentum — pure indicator math (TechAgent) |
+| `api/services/core/fusion.py` | FUSION_WEIGHTS + fuse_scores() — owned by FinanceAgent |
 
 ### Frontend key files
 | File | Responsibility |
@@ -69,7 +70,7 @@ api/  (FastAPI + uvicorn, Python 3, yfinance, Anthropic SDK)
 
 **AI cost controls** — Both `ai_news.py` and `ai_synthesis.py` check `AI_NEWS_DAILY_CAP` (default 100 calls/day). Disk-persisted JSON caches use 12 h TTL on success, 15 min on failure (self-healing transient errors).
 
-**Sigmoid fusion** — `main.py` fuses six weighted scores into a probability. Verdict thresholds: >0.65 → BUY, 0.35–0.65 → HOLD, <0.35 → SELL.
+**Sigmoid fusion** — `services/core/fusion.py` fuses six weighted scores into a probability via `fuse_scores()`. Verdict thresholds: ≥0.60 → BUY, 0.40–0.60 → HOLD, ≤0.40 → SELL. `FUSION_WEIGHTS` owned by FinanceAgent.
 
 **Embed vs. main app** — `/embed/{symbol}` allows all-origin iframes (CSP configured in `next.config.ts`). The main app sets `X-Frame-Options: DENY`.
 

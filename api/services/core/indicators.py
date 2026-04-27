@@ -173,6 +173,17 @@ def delivery_real(symbol: str, close_yf: pd.Series, get_delivery_series_fn, deli
     price_delta = (close5 - close20) / close20 if close20 else 0.0
 
     score = clamp(2 * (regime - 1) + 3 * price_delta)
+
+    # Blend 5-day delivery-trend slope (OLS) into the raw regime score.
+    _trend_result = None
+    try:
+        _trend_result = delivery_trend_fn(symbol)
+    except Exception:
+        pass
+    if _trend_result is not None:
+        score = round(0.65 * score + 0.35 * _trend_result["score"], 2)
+        score = clamp(score)
+
     if score > 0.25:
         status = "accumulating"
     elif score < -0.25:
@@ -191,6 +202,7 @@ def delivery_real(symbol: str, close_yf: pd.Series, get_delivery_series_fn, deli
         "series": [round(x, 2) for x in dp],
         "label": f"{d_now:.0f}% · {status}",
         "source": "nse-bhavcopy",
+        "delivery_trend": _trend_result,
     }
 
 
