@@ -94,20 +94,24 @@ def _set_cached(symbol: str, data: dict) -> None:
 
 # ─────────────────────────── data fetching ──────────────────────────────────
 
-def _fetch_data(symbol: str) -> tuple[pd.DataFrame, pd.DataFrame] | tuple[None, None]:
+def _fetch_data(symbol: str, session=None) -> tuple[pd.DataFrame, pd.DataFrame] | tuple[None, None]:
     """
     Download 3 years of daily OHLCV for symbol + ^NSEI benchmark.
     Returns (stock_df, nifty_df) or (None, None) on failure.
     Both DataFrames have a DatetimeIndex and at minimum a 'Close' column.
+
+    Pass a curl_cffi session to bypass Yahoo Finance bot detection in production.
     """
     try:
-        tickers = yf.download(
-            [symbol, "^NSEI"],
+        kwargs: dict = dict(
             period="3y",
             auto_adjust=True,
             progress=False,
             group_by="ticker",
         )
+        if session is not None:
+            kwargs["session"] = session
+        tickers = yf.download([symbol, "^NSEI"], **kwargs)
         # yfinance column layout can vary; guard against missing ticker key
         if symbol not in tickers.columns.get_level_values(0):
             return None, None
@@ -304,12 +308,14 @@ def _narrative(
 
 # ─────────────────────────── public API ──────────────────────────────────────
 
-def get_stock_dna(symbol: str, name: str | None = None) -> dict | None:
+def get_stock_dna(symbol: str, name: str | None = None, session=None) -> dict | None:
     """
     Main entry point. Returns cached result if available (24 h TTL, keyed by
     IST date). Returns None if data fetch fails entirely.
 
     `name` is optional display name; falls back to symbol stem if omitted.
+    Pass a curl_cffi `session` to use Chrome TLS fingerprinting (required in
+    production where Yahoo Finance blocks plain requests).
     """
     cached = _get_cached(symbol)
     if cached:
@@ -317,7 +323,7 @@ def get_stock_dna(symbol: str, name: str | None = None) -> dict | None:
 
     display_name = name or symbol.replace(".NS", "").replace(".BO", "")
 
-    stock_df, nifty_df = _fetch_data(symbol)
+    stock_df, nifty_df = _fetch_data(symbol, session=session)
     if stock_df is None or nifty_df is None:
         log.warning("stock_dna: no usable data for %s", symbol)
         return None

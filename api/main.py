@@ -836,7 +836,7 @@ def get_dna(symbol: str, response: Response):
         (n for s, n in UNIVERSE if s == symbol),
         symbol.replace(".NS", "").replace(".BO", ""),
     )
-    result = _dna_module.get_stock_dna(symbol, name=name)
+    result = _dna_module.get_stock_dna(symbol, name=name, session=_get_yf_session())
     if result is None:
         raise HTTPException(status_code=404, detail="DNA data unavailable for this symbol")
     result["name"] = name
