@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 FinanceAgent accuracy audit script.
 
@@ -15,9 +16,14 @@ Writes: docs/finance/accuracy-log.md (appends one section per run)
 from __future__ import annotations
 
 import argparse
+import io
 import sqlite3
 import sys
 from datetime import datetime, timedelta, timezone
+
+# Force UTF-8 output on Windows so arrow/tick characters don't crash
+if hasattr(sys.stdout, "buffer") and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 from pathlib import Path
 from typing import Optional
 
@@ -162,12 +168,12 @@ def run_audit(days_ago: int = 7) -> None:
         entry_price  = row["price"]
 
         if verdict == "HOLD":
-            results.append({**row, "exit_price": None, "pct_change": None, "correct": None})
+            results.append({**row, "entry_price": entry_price, "exit_price": None, "pct_change": None, "correct": None})
             continue
 
         exit_price = _fetch_latest_close(symbol)
         if exit_price is None:
-            results.append({**row, "exit_price": None, "pct_change": None, "correct": None})
+            results.append({**row, "entry_price": entry_price, "exit_price": None, "pct_change": None, "correct": None})
             continue
 
         pct_change = (exit_price - entry_price) / entry_price * 100
@@ -180,7 +186,7 @@ def run_audit(days_ago: int = 7) -> None:
             sell_total   += 1
             sell_correct += int(correct)
 
-        results.append({**row, "exit_price": exit_price, "pct_change": pct_change, "correct": correct})
+        results.append({**row, "entry_price": entry_price, "exit_price": exit_price, "pct_change": pct_change, "correct": correct})
         print(f"  {symbol}: {verdict} @ {entry_price:.2f} → {exit_price:.2f} ({pct_change:+.1f}%) {'✅' if correct else '❌'}")
 
     # Build and append report
