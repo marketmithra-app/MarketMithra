@@ -1154,7 +1154,7 @@ def admin_usage(request: Request) -> dict[str, Any]:
         if provided != secret:
             raise HTTPException(status_code=401, detail="Invalid admin key")
 
-    spend = get_spend_today()          # from ai_news (shared ledger)
+    spend = get_spend_today()          # from services.ai (shared ledger)
     calls = int(spend.get("calls", 0))
     cap   = int(spend.get("daily_cap", 100))
     usd   = float(spend.get("usd", 0.0))
