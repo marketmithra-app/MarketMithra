@@ -178,18 +178,7 @@ def build_snapshot(symbol: str, skip_synthesis: bool = False) -> dict[str, Any]:
     mom = momentum_20d(close)
     vv = volume_vwap(close, volume)
     delivery = delivery_real(symbol, close, get_delivery_series, delivery_trend)
-
-    # Blend 5-day delivery-trend slope into the raw delivery score.
-    _trend_result = None
-    try:
-        _trend_result = delivery_trend(symbol)
-    except Exception as _tre:
-        log.debug("delivery_trend failed for %s: %s", symbol, _tre)
-    if _trend_result is not None:
-        raw_delivery_score = delivery["score"]
-        blended_delivery = 0.65 * raw_delivery_score + 0.35 * _trend_result["score"]
-        delivery["score"] = round(blended_delivery, 2)
-    delivery["delivery_trend"] = _trend_result
+    # delivery_real() handles delivery_trend blending internally via injected fn
 
     ai_news = get_ai_news(symbol)
 
