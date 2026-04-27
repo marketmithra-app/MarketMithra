@@ -23,9 +23,16 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
 
 log = logging.getLogger(__name__)
+
+# Use the production-safe NSE data pipeline (bhavcopy + NSE archives via
+# curl_cffi) instead of yfinance which is blocked by Yahoo Finance bot
+# detection on Railway cloud IPs.
+try:
+    from services.data import get_nse_ohlcv as _get_nse_ohlcv
+except ImportError:
+    _get_nse_ohlcv = None  # type: ignore[assignment]
 
 # ─────────────────────────── SQLite cache ───────────────────────────────────
 
@@ -96,28 +103,19 @@ def _set_cached(symbol: str, data: dict) -> None:
 
 def _fetch_data(symbol: str, session=None) -> tuple[pd.DataFrame, pd.DataFrame] | tuple[None, None]:
     """
-    Download 3 years of daily OHLCV for symbol + ^NSEI benchmark.
-    Returns (stock_df, nifty_df) or (None, None) on failure.
-    Both DataFrames have a DatetimeIndex and at minimum a 'Close' column.
+    Fetch ~15 months of daily OHLCV for symbol + ^NSEI benchmark via the
+    NSE bhavcopy pipeline (production-safe, no Yahoo Finance dependency).
 
-    Pass a curl_cffi session to bypass Yahoo Finance bot detection in production.
+    The `session` parameter is accepted but unused — kept for call-site
+    compatibility while the migration away from yfinance is complete.
     """
     try:
-        kwargs: dict = dict(
-            period="3y",
-            auto_adjust=True,
-            progress=False,
-            group_by="ticker",
-        )
-        if session is not None:
-            kwargs["session"] = session
-        tickers = yf.download([symbol, "^NSEI"], **kwargs)
-        # yfinance column layout can vary; guard against missing ticker key
-        if symbol not in tickers.columns.get_level_values(0):
+        if _get_nse_ohlcv is None:
+            log.warning("stock_dna: services.data not importable")
             return None, None
-        stock = tickers[symbol][["Open", "High", "Low", "Close", "Volume"]].dropna()
-        nifty = tickers["^NSEI"][["Close"]].dropna()
-        if len(stock) < 100:
+        stock = _get_nse_ohlcv(symbol, n_days=390)
+        nifty = _get_nse_ohlcv("^NSEI", n_days=390)
+        if stock is None or nifty is None or len(stock) < 100:
             return None, None
         return stock, nifty
     except Exception as exc:

@@ -23,9 +23,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
 
 log = logging.getLogger(__name__)
+
+try:
+    from services.data import get_nse_ohlcv as _get_nse_ohlcv
+except ImportError:
+    _get_nse_ohlcv = None  # type: ignore[assignment]
 
 # ─────────────────────────── constants ──────────────────────────────────────
 
@@ -106,16 +110,18 @@ def _set_cached(symbol: str, data: dict) -> None:
 
 def _fetch_data(symbol: str, session=None) -> pd.DataFrame | None:
     """
-    Download 1 year of daily OHLCV for symbol.
-    Returns DataFrame with Open, High, Low, Close, Volume columns (no NaN rows),
-    or None on failure.
+    Fetch 1 year of daily OHLCV for symbol via the NSE bhavcopy pipeline
+    (production-safe, no Yahoo Finance dependency).
 
-    Pass a curl_cffi session to bypass Yahoo Finance bot detection in production.
+    The `session` parameter is accepted but unused — kept for call-site
+    compatibility while the migration away from yfinance is complete.
     """
     try:
-        ticker = yf.Ticker(symbol, session=session) if session is not None else yf.Ticker(symbol)
-        df = ticker.history(period="1y", auto_adjust=True)
-        if df.empty:
+        if _get_nse_ohlcv is None:
+            log.warning("darvas: services.data not importable")
+            return None
+        df = _get_nse_ohlcv(symbol, n_days=365)
+        if df is None or df.empty:
             log.warning("darvas: empty data for %s", symbol)
             return None
         df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()
