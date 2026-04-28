@@ -57,7 +57,11 @@ export default function Landing() {
             Sectors
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400 border border-fuchsia-500/30">NEW</span>
           </Link>
-          <Link href="/signals" className="hover:text-slate-900 dark:hover:text-slate-100 transition hidden sm:inline">Signals</Link>
+          <Link href="/panic" className="hover:text-slate-900 dark:hover:text-slate-100 transition hidden sm:inline-flex items-center gap-1.5">
+            Radar
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">NEW</span>
+          </Link>
+          <Link href="/signals" className="hover:text-slate-900 dark:hover:text-slate-100 transition hidden sm:inline">Rankings</Link>
           <WatchlistNavLink className="hidden sm:inline-flex" />
           <Link href="/track-record" className="hover:text-slate-900 dark:hover:text-slate-100 transition hidden sm:inline">Track record</Link>
           <Link href="/about" className="hover:text-slate-900 dark:hover:text-slate-100 transition hidden sm:inline">About</Link>
