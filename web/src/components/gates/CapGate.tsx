@@ -95,7 +95,7 @@ export default function CapGate({ resetAt }: Props) {
 
           <button
             ref={primaryRef}
-            onClick={() => (window.location.href = "/canvas?upgrade=1")}
+            onClick={() => (window.location.href = window.location.pathname + "?upgrade=1")}
             className="mb-2 w-full min-h-[44px] rounded-full bg-amber-400 px-4 py-2.5 text-[13px] font-bold text-slate-900 transition hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           >
             Go unlimited — ₹299/mo

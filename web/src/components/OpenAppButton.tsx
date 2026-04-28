@@ -21,7 +21,7 @@ export default function OpenAppButton({ className }: { className?: string }) {
   useEffect(() => {
     try {
       const last = localStorage.getItem(KEY);
-      if (last) setHref(`/canvas?symbol=${encodeURIComponent(last)}`);
+      if (last) setHref(`/canvas/${encodeURIComponent(last)}`);
     } catch { /* SSR / quota */ }
   }, []);
 

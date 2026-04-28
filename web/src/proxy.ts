@@ -59,7 +59,9 @@ export async function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/canvas")) {
     if (!user) {
       const url = request.nextUrl.clone();
-      const symbol = request.nextUrl.searchParams.get("symbol") ?? "";
+      // Symbol is now in the path: /canvas/RELIANCE.NS → pathParts[2]
+      const pathParts = request.nextUrl.pathname.split("/");
+      const symbol = pathParts[2] ?? "";
       url.pathname = "/";
       url.searchParams.set("gate", "canvas");
       if (symbol) url.searchParams.set("symbol", symbol);

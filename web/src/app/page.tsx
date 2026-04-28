@@ -163,7 +163,7 @@ export default function Landing() {
               {/* CTA */}
               <div className="px-5 py-3 flex items-center justify-between">
                 <span className="text-[10px] text-slate-500">Live · updated 4 min ago</span>
-                <Link href="/canvas?symbol=RELIANCE.NS" className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-500 transition">
+                <Link href="/canvas/RELIANCE.NS" className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-500 transition">
                   Open canvas →
                 </Link>
               </div>

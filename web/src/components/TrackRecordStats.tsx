@@ -146,7 +146,7 @@ export default function TrackRecordStats() {
                       <td className="px-4 py-3 text-[12px] text-slate-500 font-mono">{i + 1}</td>
                       <td className="px-4 py-3">
                         <Link
-                          href={`/canvas?symbol=${encodeURIComponent(s.symbol)}`}
+                          href={`/canvas/${encodeURIComponent(s.symbol)}`}
                           className="font-semibold text-slate-900 dark:text-slate-100 hover:text-amber-600 dark:hover:text-amber-400 transition text-[13px]"
                         >
                           {s.symbol.replace(".NS", "").replace(".BO", "")}

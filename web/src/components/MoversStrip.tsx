@@ -167,7 +167,7 @@ function SidebarMoverChip({ m }: { m: MoverResult }) {
 
   return (
     <Link
-      href={`/canvas?symbol=${encodeURIComponent(m.symbol)}`}
+      href={`/canvas/${encodeURIComponent(m.symbol)}`}
       className={`flex-none rounded-lg border px-2.5 py-1.5 text-center hover:opacity-80 transition ${
         isUp
           ? "border-emerald-500/30 bg-emerald-500/8"
