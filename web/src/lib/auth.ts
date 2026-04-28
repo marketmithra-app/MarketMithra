@@ -12,6 +12,7 @@ export type AuthUser = {
   id: string;
   email: string;
   isPro: boolean;
+  isAdmin: boolean;
 };
 
 /**
@@ -72,5 +73,6 @@ export async function getUser(): Promise<AuthUser | null> {
     if (isPro) localStorage.setItem("mm_pro", "1");
   } catch { /* ignore */ }
 
-  return { id: user.id, email: user.email, isPro };
+  const isAdmin = user.email === process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;
+  return { id: user.id, email: user.email, isPro, isAdmin };
 }
