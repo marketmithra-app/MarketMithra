@@ -20,9 +20,7 @@ export const runtime = "nodejs";
 
 export async function POST(_req: NextRequest) {
   const cookieStore = await cookies();
-  const supabase = getServerSupabase({
-    get: (name) => cookieStore.get(name)?.value,
-  });
+  const supabase = getServerSupabase(cookieStore);
 
   if (!supabase) {
     // Supabase not configured — fail open (dev / CI environment)

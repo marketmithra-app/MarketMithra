@@ -1,5 +1,5 @@
 /**
- * Next.js Edge Middleware — route protection.
+ * Next.js 16 Proxy — route protection (replaces middleware.ts convention).
  *
  * /canvas    → requires Supabase auth session. Anonymous users are redirected to
  *              /?gate=canvas&symbol=<sym> where the landing page shows SignInGate.
@@ -11,7 +11,7 @@
  * /admin     → requires session + email matches SUPER_ADMIN_EMAIL env var.
  *              All other users redirected to /.
  *
- * The middleware does NOT check the weekly cap — that happens client-side
+ * The proxy does NOT check the weekly cap — that happens client-side
  * via POST /api/consume-analysis after the page loads.
  */
 
@@ -23,7 +23,7 @@ export const config = {
   matcher: ["/canvas/:path*", "/dna/:path*", "/panic/:path*", "/watchlist/:path*", "/admin/:path*"],
 };
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
