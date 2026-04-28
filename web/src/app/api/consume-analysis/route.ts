@@ -19,14 +19,8 @@ import { currentWeekStartIST, nextMondayISTString, FREE_WEEKLY_CAP } from "@/lib
 export const runtime = "nodejs";
 
 export async function POST(_req: NextRequest) {
-const cookieStore = cookies();
-
-const supabase = getServerSupabase({
-  get: (name: string) => cookieStore.get(name)?.value,
-  set: (name: string, value: string, options?: Record<string, unknown>) => {
-    cookieStore.set(name, value, options);
-  },
-});
+  const cookieStore = await cookies();
+  const supabase = getServerSupabase(cookieStore);
 
   if (!supabase) {
     // Supabase not configured — fail open (dev / CI environment)
