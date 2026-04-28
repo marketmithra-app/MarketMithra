@@ -12,7 +12,27 @@ export type AuthUser = {
   id: string;
   email: string;
   isPro: boolean;
+  isAdmin: boolean;
 };
+
+/**
+ * Trigger Google OAuth flow. Supabase redirects the browser; no return value
+ * on success (the page navigates away). Returns { error } only if the SDK
+ * call itself fails before redirecting.
+ */
+export async function signInWithGoogle(
+  redirectTo = `${window.location.origin}/auth/callback`
+): Promise<{ error: string | null }> {
+  const supabase = getBrowserSupabase();
+  if (!supabase) {
+    return { error: "Auth not configured — add Supabase keys to .env.local" };
+  }
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo },
+  });
+  return { error: error?.message ?? null };
+}
 
 /**
  * Send a magic-link email.
@@ -72,5 +92,6 @@ export async function getUser(): Promise<AuthUser | null> {
     if (isPro) localStorage.setItem("mm_pro", "1");
   } catch { /* ignore */ }
 
-  return { id: user.id, email: user.email, isPro };
+  const isAdmin = user.email === process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;
+  return { id: user.id, email: user.email, isPro, isAdmin };
 }

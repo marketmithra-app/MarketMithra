@@ -1,100 +1,95 @@
 /**
- * Client-side daily usage cap for the free tier.
+ * Server-aware weekly usage cap for the free tier.
  *
- * Free users get FREE_DAILY_CAP full canvas analyses per day.
- * Counts are stored in localStorage keyed by date — no server, no auth required.
- * When the user upgrades to Pro, set "mm_pro": "1" in localStorage (or via
- * Supabase session) and isPro() will bypass the cap.
+ * Free users get FREE_WEEKLY_CAP full canvas analyses per week (Mon–Sun IST).
+ * Counts are tracked server-side in Supabase `weekly_usage`.
+ * Call `consumeAnalysis(symbol)` before rendering the canvas — it will return
+ * `allowed: false` when the cap is reached.
+ *
+ * Pure date helpers (`currentWeekStartIST`, `nextMondayISTString`, `msUntilWeekReset`)
+ * are exported for tests and the CapGate countdown component.
  */
 
-export const FREE_DAILY_CAP = 5;
+export const FREE_WEEKLY_CAP = 5;
 
-const USAGE_KEY = "mm_usage_v1";
-const PRO_KEY   = "mm_pro";
+// IST = UTC+5:30
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
-interface UsageRecord {
-  date: string;   // "YYYY-MM-DD" local time
-  count: number;
-}
-
-function today(): string {
-  return new Date().toLocaleDateString("en-CA"); // "YYYY-MM-DD" in local TZ
-}
-
-function readRecord(): UsageRecord {
-  if (typeof window === "undefined") return { date: today(), count: 0 };
-  try {
-    const raw = localStorage.getItem(USAGE_KEY);
-    if (!raw) return { date: today(), count: 0 };
-    const rec: UsageRecord = JSON.parse(raw);
-    // New calendar day → reset
-    if (rec.date !== today()) return { date: today(), count: 0 };
-    return rec;
-  } catch {
-    return { date: today(), count: 0 };
-  }
-}
-
-function writeRecord(rec: UsageRecord) {
-  try {
-    localStorage.setItem(USAGE_KEY, JSON.stringify(rec));
-  } catch { /* storage full / private mode */ }
-}
-
-/** Has the user paid for Pro? (localStorage flag; will be Supabase session later.) */
-export function isPro(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return localStorage.getItem(PRO_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-/** How many analyses the user has consumed today. */
-export function getDailyCount(): number {
-  return readRecord().count;
-}
-
-/** True when free-tier cap is reached AND user is not Pro. */
-export function isAtCap(): boolean {
-  if (isPro()) return false;
-  return readRecord().count >= FREE_DAILY_CAP;
+export interface UsageResult {
+  allowed: boolean;
+  remaining: number;
+  resetAt: string; // "YYYY-MM-DD" — date of next Monday in IST
 }
 
 /**
- * Consume one analysis unit.
- * Returns the new count.  Pro users are counted too (for stats) but cap is not enforced.
+ * Consume one analysis unit server-side.
+ * Fails open: if the server is unreachable, returns `allowed: true` so the
+ * user is never hard-blocked by a network error.
  */
-export function consumeOne(): number {
-  const rec = readRecord();
-  rec.count += 1;
-  writeRecord(rec);
-  return rec.count;
+export async function consumeAnalysis(symbol: string): Promise<UsageResult> {
+  try {
+    const res = await fetch("/api/consume-analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json() as Promise<UsageResult>;
+  } catch {
+    // Fail open — network/server error must not block the user
+    return { allowed: true, remaining: FREE_WEEKLY_CAP, resetAt: nextMondayISTString() };
+  }
 }
 
 /**
- * Milliseconds until midnight local time (when the cap resets).
- * Used by the upgrade gate to show a countdown.
+ * "YYYY-MM-DD" of the Monday that started the current IST week.
+ * Sunday counts as the last day of the previous week.
  */
-export function msUntilMidnight(): number {
-  const now = new Date();
-  const midnight = new Date(now);
-  midnight.setHours(24, 0, 0, 0);
-  return midnight.getTime() - now.getTime();
+export function currentWeekStartIST(): string {
+  const nowIST = new Date(Date.now() + IST_OFFSET_MS);
+  const day = nowIST.getUTCDay(); // 0=Sun, 1=Mon … 6=Sat
+  const daysToMonday = day === 0 ? 6 : day - 1;
+  const monday = new Date(nowIST);
+  monday.setUTCDate(nowIST.getUTCDate() - daysToMonday);
+  monday.setUTCHours(0, 0, 0, 0);
+  return monday.toISOString().split("T")[0];
 }
 
-/** Formatted "Xh Ym" string until cap reset. */
-export function timeUntilReset(): string {
-  const ms = msUntilMidnight();
-  const h  = Math.floor(ms / 3_600_000);
-  const m  = Math.floor((ms % 3_600_000) / 60_000);
+/**
+ * "YYYY-MM-DD" of the next Monday in IST.
+ * If today is Monday, the NEXT Monday is 7 days away (cap has already reset today).
+ */
+export function nextMondayISTString(): string {
+  const nowIST = new Date(Date.now() + IST_OFFSET_MS);
+  const day = nowIST.getUTCDay(); // 0=Sun … 6=Sat
+  // Sun→1, Mon→7, Tue→6, Wed→5, Thu→4, Fri→3, Sat→2
+  const daysUntilNextMonday = day === 0 ? 1 : 8 - day;
+  const next = new Date(nowIST);
+  next.setUTCDate(nowIST.getUTCDate() + daysUntilNextMonday);
+  next.setUTCHours(0, 0, 0, 0);
+  return next.toISOString().split("T")[0];
+}
+
+/** Milliseconds until next Monday 00:00 IST. Used by the CapGate countdown. */
+export function msUntilWeekReset(): number {
+  const nowIST = Date.now() + IST_OFFSET_MS;
+  const nextMondayIST = new Date(nextMondayISTString() + "T00:00:00Z").getTime();
+  // `nextMondayISTString()` returns "YYYY-MM-DD" parsed as midnight UTC via
+  // "T00:00:00Z". `nowIST` is Date.now() shifted forward by the IST offset.
+  // Subtraction gives (Mon 00:00 UTC) − (now_UTC + 5.5 h)
+  //   = ms until Monday 00:00 IST
+  //   (midnight IST = 2026-05-04T00:00+05:30 = 2026-05-03T18:30Z, so
+  //    Mon midnight IST arrives 5.5 h before Mon midnight UTC).
+  return Math.max(0, nextMondayIST - nowIST);
+}
+
+/** Format ms as "Xd Yh Zm" for the countdown display. */
+export function formatCountdown(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const d = Math.floor(totalSec / 86400);
+  const h = Math.floor((totalSec % 86400) / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h ${m}m`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
-}
-
-/** Dev helper — call from browser console to simulate Pro. */
-export function devSetPro(value: boolean) {
-  if (value) localStorage.setItem(PRO_KEY, "1");
-  else localStorage.removeItem(PRO_KEY);
 }
