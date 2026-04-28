@@ -84,7 +84,16 @@ export default function SignInGate({ symbol }: Props) {
         </div>
       </div>
 
-      {showModal && <SignInModal onClose={() => setShowModal(false)} />}
+      {showModal && (
+        <SignInModal
+          onClose={() => setShowModal(false)}
+          redirectTo={
+            symbol
+              ? `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback?next=${encodeURIComponent(`/canvas?symbol=${symbol}`)}`
+              : `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`
+          }
+        />
+      )}
     </>
   );
 }

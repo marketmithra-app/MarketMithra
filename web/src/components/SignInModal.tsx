@@ -5,11 +5,12 @@ import { signInWithEmail } from "@/lib/auth";
 
 interface Props {
   onClose: () => void;
+  redirectTo?: string; // optional magic-link redirect override
 }
 
 type Step = "input" | "sending" | "sent" | "error";
 
-export default function SignInModal({ onClose }: Props) {
+export default function SignInModal({ onClose, redirectTo }: Props) {
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<Step>("input");
   const [errMsg, setErrMsg] = useState("");
@@ -18,7 +19,7 @@ export default function SignInModal({ onClose }: Props) {
     e.preventDefault();
     if (!email.trim()) return;
     setStep("sending");
-    const { error } = await signInWithEmail(email.trim().toLowerCase());
+    const { error } = await signInWithEmail(email.trim().toLowerCase(), redirectTo);
     if (error) {
       setErrMsg(error);
       setStep("error");
