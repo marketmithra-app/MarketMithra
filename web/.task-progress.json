@@ -3,6 +3,7 @@
   "plan": "docs/superpowers/plans/2026-04-27-auth-gating.md",
   "updatedAt": "2026-04-28",
   "allCodeDone": true,
+  "allManualStepsDone": true,
   "tasks": {
     "1": { "status": "done", "commit": "cbc7ee6" },
     "2": { "status": "done", "commit": "81991ba" },
@@ -15,8 +16,8 @@
     "9": { "status": "done", "commit": "272ac7d" },
     "10": { "status": "done", "commit": "272ac7d" },
     "11": { "status": "done", "commit": "272ac7d" },
-    "12": { "status": "manual", "note": "Requires human: add SUPER_ADMIN_EMAIL + NEXT_PUBLIC_SUPER_ADMIN_EMAIL to .env.local and Vercel; run weekly_usage SQL in Supabase dashboard (SQL in commit cbc7ee6)" },
+    "12": { "status": "done", "note": "Supabase weekly_usage table created, RLS enabled. SUPER_ADMIN_EMAIL + NEXT_PUBLIC_SUPER_ADMIN_EMAIL set in .env.local + Vercel. Redeploy triggered." },
     "13": { "status": "done", "commit": "26ebc40" }
   },
-  "nextStep": "PR merge + manual smoke test checklist from Task 12 in the plan"
+  "nextStep": "Smoke test on Vercel preview URL, then merge PR"
 }
