@@ -1,0 +1,24 @@
+{
+  "branch": "feature/auth-gating",
+  "plan": "docs/superpowers/plans/2026-04-27-auth-gating.md",
+  "updatedAt": "2026-04-28",
+  "tasks": {
+    "1": { "status": "done", "commit": "cbc7ee6", "note": "lucide-react installed; weekly_usage SQL documented in commit (manual Supabase step pending)" },
+    "2": { "status": "done", "commit": "81991ba", "note": "usageCap.ts rewritten; 8 tests pass; fail-open uses FREE_WEEKLY_CAP; IST date helpers correct" },
+    "3": { "status": "done", "commit": "2a1cea3", "note": "POST /api/consume-analysis: 5 paths (unauth 401, admin bypass, pro bypass, cap check, increment); runtime=nodejs; upsert errors logged" },
+    "4": { "status": "done", "commit": "8b2408b", "note": "AuthUser gets isAdmin:boolean; getUser() computes via NEXT_PUBLIC_SUPER_ADMIN_EMAIL" },
+    "5": { "status": "in_progress", "note": "middleware.ts created but review pending (session hit limit mid-review)" },
+    "6": { "status": "pending" },
+    "7": { "status": "pending" },
+    "8": { "status": "pending" },
+    "9": { "status": "pending" },
+    "10": { "status": "pending" },
+    "11": { "status": "pending" },
+    "12": { "status": "pending" },
+    "13": { "status": "pending" }
+  },
+  "knownIssues": [
+    "TS errors in CanvasMain.tsx, ProUpgradeGate.tsx, TopBar.tsx referencing old usageCap exports — will be fixed in Task 9",
+    "Supabase weekly_usage table requires manual SQL run in dashboard (Task 1 SQL in commit cbc7ee6)"
+  ]
+}
