@@ -37,7 +37,7 @@ export async function consumeAnalysis(symbol: string): Promise<UsageResult> {
     return res.json() as Promise<UsageResult>;
   } catch {
     // Fail open — network/server error must not block the user
-    return { allowed: true, remaining: 0, resetAt: nextMondayISTString() };
+    return { allowed: true, remaining: FREE_WEEKLY_CAP, resetAt: nextMondayISTString() };
   }
 }
 
@@ -74,10 +74,12 @@ export function nextMondayISTString(): string {
 export function msUntilWeekReset(): number {
   const nowIST = Date.now() + IST_OFFSET_MS;
   const nextMondayIST = new Date(nextMondayISTString() + "T00:00:00Z").getTime();
-  // nextMondayIST is midnight UTC of next Monday, but we want midnight IST
-  // midnight IST = midnight UTC − 5.5h … but we worked in IST-shifted time
-  // so nextMondayIST already represents midnight-IST in the shifted frame.
-  // Convert back: subtract the IST offset to get wall-clock ms remaining.
+  // `nextMondayISTString()` returns "YYYY-MM-DD" parsed as midnight UTC via
+  // "T00:00:00Z". `nowIST` is Date.now() shifted forward by the IST offset.
+  // Subtraction gives (Mon 00:00 UTC) − (now_UTC + 5.5 h)
+  //   = ms until Monday 00:00 IST
+  //   (midnight IST = 2026-05-04T00:00+05:30 = 2026-05-03T18:30Z, so
+  //    Mon midnight IST arrives 5.5 h before Mon midnight UTC).
   return Math.max(0, nextMondayIST - nowIST);
 }
 
