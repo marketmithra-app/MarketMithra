@@ -95,7 +95,7 @@ export default function TopBar({ activeSymbol }: { activeSymbol: string }) {
   }, []);
 
   function openSymbol(sym: string) {
-    router.push(`/canvas?symbol=${encodeURIComponent(sym)}`);
+    router.push(`/canvas/${encodeURIComponent(sym)}`);
     setOpen(false);
     setQ("");
   }

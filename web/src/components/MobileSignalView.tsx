@@ -115,7 +115,7 @@ export default function MobileSignalView({ snapshot }: { snapshot: StockSnapshot
 
       {/* CTA */}
       <Link
-        href={`/canvas?symbol=${encodeURIComponent(symbol)}`}
+        href={`/canvas/${encodeURIComponent(symbol)}`}
         className="block w-full rounded-xl bg-amber-500/10 ring-1 ring-amber-400/40 hover:ring-amber-400/70 hover:bg-amber-500/15 transition px-4 py-3 text-center text-sm font-semibold text-amber-400"
       >
         View full canvas →

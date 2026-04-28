@@ -123,7 +123,7 @@ export default async function SignalPage({
       {snap && <SignalJsonLd snap={snap} />}
 
       <MarketMithraHeader
-        ctaHref={`/canvas?symbol=${encodeURIComponent(fullSym)}`}
+        ctaHref={`/canvas/${encodeURIComponent(fullSym)}`}
         ctaLabel={`Open ${symClean} canvas →`}
       />
 
@@ -312,7 +312,7 @@ export default async function SignalPage({
             all in one visual view.
           </p>
           <Link
-            href={`/canvas?symbol=${encodeURIComponent(fullSym)}`}
+            href={`/canvas/${encodeURIComponent(fullSym)}`}
             className="inline-block rounded-full bg-amber-400 px-8 py-3 text-sm font-bold text-slate-900 hover:bg-amber-300 transition"
           >
             Open {symClean} canvas →

@@ -144,7 +144,7 @@ export default function MobileRankingsDrawer({
                         return (
                           <li key={`w-${s.symbol}`} className="flex items-center gap-2 px-4 py-2.5">
                             <Link
-                              href={`/canvas?symbol=${encodeURIComponent(s.symbol)}`}
+                              href={`/canvas/${encodeURIComponent(s.symbol)}`}
                               onClick={() => setOpen(false)}
                               className="flex-1 min-w-0 flex items-center gap-2"
                             >
@@ -183,7 +183,7 @@ export default function MobileRankingsDrawer({
                     return (
                       <li key={s.symbol} className="flex items-center gap-2 group">
                         <Link
-                          href={`/canvas?symbol=${encodeURIComponent(s.symbol)}`}
+                          href={`/canvas/${encodeURIComponent(s.symbol)}`}
                           onClick={() => setOpen(false)}
                           className={`flex-1 flex items-center gap-3 px-4 py-2.5 min-w-0 transition ${
                             isActive
