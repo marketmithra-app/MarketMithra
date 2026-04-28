@@ -33,9 +33,7 @@ export async function GET(req: NextRequest) {
   }
 
   const cookieStore = await cookies();
-  const supabase = getServerSupabase({
-    get: (name) => cookieStore.get(name)?.value,
-  });
+  const supabase = getServerSupabase(cookieStore);
 
   if (!supabase) {
     return NextResponse.json(EMPTY(symbol), { headers: CACHE_HEADERS });

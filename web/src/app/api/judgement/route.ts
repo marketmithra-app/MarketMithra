@@ -31,9 +31,7 @@ export async function POST(req: Request) {
   }
 
   const cookieStore = await cookies();
-  const supabase = getServerSupabase({
-    get: (name) => cookieStore.get(name)?.value,
-  });
+  const supabase = getServerSupabase(cookieStore);
 
   if (!supabase) {
     return NextResponse.json({ ok: true, persisted: "local" });

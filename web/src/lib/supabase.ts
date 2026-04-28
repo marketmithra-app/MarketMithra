@@ -29,22 +29,34 @@ export function getBrowserSupabase(): SupabaseClient | null {
   return _browser;
 }
 
-/** Server-side anon client. Pass cookie get/set from the Next.js request. */
-export function getServerSupabase(cookies: {
-  get: (name: string) => string | undefined;
-  set?: (name: string, value: string, options?: Record<string, unknown>) => void;
+/**
+ * Server-side anon client. Pass the Next.js `cookies()` store directly.
+ *
+ * Uses the modern getAll/setAll API. setAll is wrapped in try/catch because
+ * ReadonlyRequestCookies.set() throws when called from a Server Component
+ * render (not an API route). API routes support set() without issue.
+ */
+export function getServerSupabase(cookieStore: {
+  getAll(): { name: string; value: string }[];
+  set(name: string, value: string, options?: Record<string, unknown>): unknown;
 }): SupabaseClient | null {
   if (!supabaseConfigured) return null;
   return createServerClient(URL!, ANON!, {
     cookies: {
       getAll() {
-        return [];
+        return cookieStore.getAll();
       },
-      setAll() {},
-      get: (name: string) => cookies.get(name),
-      set: (name: string, value: string, options?: Record<string, unknown>) =>
-        cookies.set?.(name, value, options),
-    } as never,
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options as Record<string, unknown>)
+          );
+        } catch {
+          // Throws in read-only contexts (Server Components, middleware request
+          // cookies). Safe to ignore here — middleware handles token refresh.
+        }
+      },
+    },
   });
 }
 
