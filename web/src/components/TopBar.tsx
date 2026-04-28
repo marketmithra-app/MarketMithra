@@ -14,10 +14,11 @@ import Link from "next/link";
 import { getWatchlistCount, subscribeWatchlist } from "@/lib/watchlist";
 
 const NAV_LINKS = [
-  { href: "/signals",  label: "Signals"  },
+  { href: "/signals",  label: "Rankings" },
   { href: "/canvas",   label: "Canvas"   },
   { href: "/watchlist",label: "Watchlist"},
   { href: "/sectors",  label: "Sectors"  },
+  { href: "/panic",    label: "Radar"    },
 ];
 
 export default function TopBar({ activeSymbol }: { activeSymbol: string }) {

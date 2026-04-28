@@ -32,8 +32,9 @@ export default function Footer() {
             </div>
             <ul className="space-y-2 text-[13px]">
               <li><Link href="/canvas" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">Canvas</Link></li>
-              <li><Link href="/signals" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">Signals</Link></li>
+              <li><Link href="/signals" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">Rankings</Link></li>
               <li><Link href="/sectors" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">Sectors</Link></li>
+              <li><Link href="/panic" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">Radar</Link></li>
               <li><Link href="/track-record" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">Track record</Link></li>
             </ul>
           </div>
