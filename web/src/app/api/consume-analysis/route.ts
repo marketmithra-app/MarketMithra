@@ -16,7 +16,9 @@ import { cookies } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase";
 import { currentWeekStartIST, nextMondayISTString, FREE_WEEKLY_CAP } from "@/lib/usageCap";
 
-export async function POST(req: NextRequest) {
+export const runtime = "nodejs";
+
+export async function POST(_req: NextRequest) {
   const cookieStore = await cookies();
   const supabase = getServerSupabase({
     get: (name) => cookieStore.get(name)?.value,
@@ -49,6 +51,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Free user — check and increment weekly count
+  // Note: read-then-write is not atomic. Concurrent requests can over-count
+  // by up to N concurrent tabs. Acceptable for the 5/week soft cap at this stage.
+  // Future fix: replace with a Postgres atomic increment via Supabase RPC.
   const weekStart = currentWeekStartIST();
   const resetAt = nextMondayISTString();
 
@@ -66,10 +71,14 @@ export async function POST(req: NextRequest) {
   }
 
   // Increment
-  await supabase.from("weekly_usage").upsert(
+  const { error: upsertError } = await supabase.from("weekly_usage").upsert(
     { user_id: user.id, week_start: weekStart, count: currentCount + 1, updated_at: new Date().toISOString() },
     { onConflict: "user_id,week_start" }
   );
+  if (upsertError) {
+    // Log but do not block the user — cap is a soft limit.
+    console.error("[consume-analysis] upsert failed:", upsertError.message);
+  }
 
   return NextResponse.json({
     allowed: true,
