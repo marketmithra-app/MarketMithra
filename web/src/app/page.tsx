@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import LandingGateController from "@/components/gates/LandingGateController";
 import WaitlistForm from "@/components/WaitlistForm";
 import OpenAppButton from "@/components/OpenAppButton";
 import PricingCTA from "@/components/PricingCTA";
@@ -32,6 +33,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-[#0a0b10] dark:text-slate-100">
+      <LandingGateController />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}

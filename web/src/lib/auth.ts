@@ -16,6 +16,25 @@ export type AuthUser = {
 };
 
 /**
+ * Trigger Google OAuth flow. Supabase redirects the browser; no return value
+ * on success (the page navigates away). Returns { error } only if the SDK
+ * call itself fails before redirecting.
+ */
+export async function signInWithGoogle(
+  redirectTo = `${window.location.origin}/auth/callback`
+): Promise<{ error: string | null }> {
+  const supabase = getBrowserSupabase();
+  if (!supabase) {
+    return { error: "Auth not configured — add Supabase keys to .env.local" };
+  }
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo },
+  });
+  return { error: error?.message ?? null };
+}
+
+/**
  * Send a magic-link email.
  * Returns { error: string | null }.
  */

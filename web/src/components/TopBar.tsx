@@ -6,8 +6,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 import MarketStatusPill from "@/components/MarketStatusPill";
 import { searchTickers, type TickerEntry } from "@/lib/tickers";
 import { searchRemote, type RemoteTickerHit } from "@/lib/api";
-import { getDailyCount, FREE_DAILY_CAP, isPro } from "@/lib/usageCap";
 import { getUser, signOut, type AuthUser } from "@/lib/auth";
+import HeaderBadge from "@/components/HeaderBadge";
 import SignInModal from "@/components/SignInModal";
 import { getRecentSymbols } from "@/lib/recentSymbols";
 import Link from "next/link";
@@ -287,7 +287,7 @@ export default function TopBar({ activeSymbol }: { activeSymbol: string }) {
       <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 shrink-0">
         <span className="hidden lg:inline">Educational tool · not advice</span>
         <ThemeToggle />
-        <UsagePill />
+        <HeaderBadge />
         <WatchlistPill />
         <AuthButton />
       </div>
@@ -389,40 +389,3 @@ function WatchlistPill() {
   );
 }
 
-// ── usage pill ────────────────────────────────────────────────────────────────
-function UsagePill() {
-  const [count, setCount] = useState<number | null>(null);
-  const [pro, setPro] = useState(false);
-
-  useEffect(() => {
-    // Read client-side only to avoid SSR mismatch.
-    setCount(getDailyCount());
-    setPro(isPro());
-  }, []);
-
-  if (count === null) return null; // SSR — render nothing
-
-  if (pro) {
-    return (
-      <span className="rounded-full bg-amber-400/15 border border-amber-400/40 px-2.5 py-1 text-[11px] font-semibold text-amber-400">
-        ⚡ Pro
-      </span>
-    );
-  }
-
-  const remaining = Math.max(0, FREE_DAILY_CAP - count);
-  const isNearCap = remaining <= 1;
-
-  return (
-    <span
-      className={`rounded-full border px-2.5 py-1 text-[11px] font-mono transition ${
-        isNearCap
-          ? "border-rose-500/50 bg-rose-500/10 text-rose-400"
-          : "border-slate-600 bg-slate-800/60 text-slate-400"
-      }`}
-      title={`Free tier: ${remaining} of ${FREE_DAILY_CAP} analyses remaining today`}
-    >
-      {remaining}/{FREE_DAILY_CAP} free
-    </span>
-  );
-}

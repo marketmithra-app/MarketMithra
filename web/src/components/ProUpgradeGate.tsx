@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FREE_DAILY_CAP, timeUntilReset } from "@/lib/usageCap";
+import { FREE_WEEKLY_CAP, formatCountdown, msUntilWeekReset } from "@/lib/usageCap";
 import { getAnonId } from "@/lib/anonId";
 
 interface Props {
@@ -28,7 +28,7 @@ export default function ProUpgradeGate({ symbol }: Props) {
         <p className="text-sm text-slate-400 mb-6 leading-relaxed">
           Free accounts get{" "}
           <span className="text-amber-400 font-semibold">
-            {FREE_DAILY_CAP} full analyses per day
+            {FREE_WEEKLY_CAP} full analyses per week
           </span>
           . You&apos;ve hit today&apos;s cap.{" "}
           <strong className="text-slate-200">{cleanSym}</strong> and the rest of
@@ -142,7 +142,7 @@ export default function ProUpgradeGate({ symbol }: Props) {
         </p>
         <p className="mt-1 text-[11px] text-slate-700">
           Or wait — free cap resets in{" "}
-          <span className="text-slate-500 font-mono">{timeUntilReset()}</span>
+          <span className="text-slate-500 font-mono">{formatCountdown(msUntilWeekReset())}</span>
         </p>
       </div>
     </div>

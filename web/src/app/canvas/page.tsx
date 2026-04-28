@@ -4,6 +4,7 @@ import TopBar from "@/components/TopBar";
 import CanvasMain from "@/components/CanvasMain";
 import ApiErrorState from "@/components/ApiErrorState";
 import MobileSignalView from "@/components/MobileSignalView";
+import CanvasGateWrapper from "@/components/gates/CanvasGateWrapper";
 import { fetchSnapshot } from "@/lib/api";
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ symbol?: string }> }) {
@@ -63,7 +64,7 @@ export default async function CanvasPage({
           {snapshot && <div className="block md:hidden"><MobileSignalView snapshot={snapshot} /></div>}
           {/* Desktop: full canvas */}
           <div className="hidden md:flex flex-col flex-1 min-h-0">
-            {snapshot ? <CanvasMain snapshot={snapshot} forceGate={forceGate} /> : <ApiErrorState symbol={active} />}
+            {snapshot ? <CanvasGateWrapper symbol={active}><CanvasMain snapshot={snapshot} forceGate={forceGate} /></CanvasGateWrapper> : <ApiErrorState symbol={active} />}
           </div>
           {/* Mobile no snapshot */}
           {!snapshot && <div className="block md:hidden"><ApiErrorState symbol={active} /></div>}
