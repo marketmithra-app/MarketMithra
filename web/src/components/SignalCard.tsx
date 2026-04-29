@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { StockSnapshot, Verdict } from "@/lib/types";
 import { appendLocalJudgement, getAnonId, latestLocalVote } from "@/lib/anonId";
+import Link from "next/link";
 import FreshnessBadge from "@/components/FreshnessBadge";
 
 type Vote = "agree" | "disagree";
@@ -262,12 +263,12 @@ export default function SignalCard({ snapshot, onToggleGraph, graphVisible }: Pr
             <span className="hidden sm:inline">{graphVisible ? "Hide signal graph" : "View signal graph"}</span>
           </button>
           {/* Mobile-only: link to see all rankings since sidebar is hidden */}
-          <a
+          <Link
             href="/canvas"
             className="md:hidden text-[11px] text-amber-500/70 hover:text-amber-400 transition font-mono"
           >
             All 50 →
-          </a>
+          </Link>
         </div>
         <div className="flex items-center gap-2">
           <VoteButtons snapshot={snapshot} />
