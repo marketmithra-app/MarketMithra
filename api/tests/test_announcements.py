@@ -1,47 +1,71 @@
-"""Tests for BSE announcements module helpers."""
+"""Tests for BSE announcements module."""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-KEEP_CATEGORIES = {
-    "Results", "Dividend", "Board Meeting", "Buyback",
-    "Rights Issue", "Bonus Issue", "QIP",
-    "Merger/Amalgamation", "Scheme of Arrangement",
-}
-
-
-def _filter_announcements(raw: list[dict]) -> list[dict]:
-    return [a for a in raw if a.get("CATEGORYNAME", "") in KEEP_CATEGORIES]
+from unittest.mock import patch
+from services.data.announcements import get_announcements, KEEP_CATEGORIES
+import services.data.announcements as _ann_mod
 
 
-def test_filter_keeps_results():
-    raw = [{"CATEGORYNAME": "Results", "HEADLINE": "Q4 results"}]
-    assert len(_filter_announcements(raw)) == 1
+# ── Category filter tests (against the REAL KEEP_CATEGORIES constant) ───────
+
+def test_keep_categories_has_results():
+    assert "Results" in KEEP_CATEGORIES
 
 
-def test_filter_drops_agm():
-    raw = [{"CATEGORYNAME": "AGM", "HEADLINE": "Annual General Meeting"}]
-    assert len(_filter_announcements(raw)) == 0
+def test_keep_categories_has_merger():
+    assert "Merger/Amalgamation" in KEEP_CATEGORIES
 
 
-def test_filter_drops_allotment():
-    raw = [{"CATEGORYNAME": "Allotment", "HEADLINE": "Allotment notice"}]
-    assert len(_filter_announcements(raw)) == 0
+def test_keep_categories_excludes_agm():
+    assert "AGM" not in KEEP_CATEGORIES
 
 
-def test_filter_keeps_merger():
-    raw = [{"CATEGORYNAME": "Merger/Amalgamation", "HEADLINE": "Merger plan"}]
-    assert len(_filter_announcements(raw)) == 1
+def test_keep_categories_excludes_allotment():
+    assert "Allotment" not in KEEP_CATEGORIES
 
 
-def test_filter_mixed():
-    raw = [
-        {"CATEGORYNAME": "Dividend", "HEADLINE": "Interim dividend"},
-        {"CATEGORYNAME": "AGM", "HEADLINE": "AGM notice"},
-        {"CATEGORYNAME": "Results", "HEADLINE": "Q1 results"},
-    ]
-    result = _filter_announcements(raw)
-    assert len(result) == 2
-    assert all(r["CATEGORYNAME"] in KEEP_CATEGORIES for r in result)
-
+# ── get_announcements integration tests (mocked network) ────────────────────
 
 def test_unknown_symbol_returns_empty():
-    NSE_TO_BSE: dict[str, str] = {"TCS.NS": "532540"}
-    assert NSE_TO_BSE.get("UNKNOWN.NS") is None
+    """Symbol not in NSE_TO_BSE must return [] without any network call."""
+    result = get_announcements("FAKE.NS")
+    assert result == []
+
+
+def test_bse_fetch_failure_returns_empty():
+    """If BSE API is down, get_announcements must return [] gracefully."""
+    _ann_mod._ANN_CACHE.clear()
+    with patch("services.data.announcements._fetch_bse_raw", return_value=[]):
+        result = get_announcements("TCS.NS")
+    assert result == []
+
+
+def test_filtered_rows_returned_with_haiku_fallback():
+    """If BSE returns data but Haiku is unavailable, fall back to raw titles."""
+    _ann_mod._ANN_CACHE.clear()
+    fake_rows = [
+        {
+            "CATEGORYNAME": "Results",
+            "NEWS_DT": "2026-04-29T10:00:00",
+            "HEADLINE": "Q4 PAT beats estimates",
+        },
+        {
+            "CATEGORYNAME": "AGM",  # should be filtered out
+            "NEWS_DT": "2026-04-28T10:00:00",
+            "HEADLINE": "Annual General Meeting notice",
+        },
+    ]
+    with patch("services.data.announcements._fetch_bse_raw", return_value=fake_rows), \
+         patch("services.data.announcements._summarise_with_haiku",
+               side_effect=lambda sym, anns: [{**a, "plainEnglish": a["title"], "impact": "medium"} for a in anns]):
+        result = get_announcements("TCS.NS")
+
+    # Only "Results" row should survive the category filter
+    assert len(result) == 1
+    assert result[0]["category"] == "Results"
+    assert result[0]["title"] == "Q4 PAT beats estimates"
+    assert result[0]["date"] == "2026-04-29"  # sliced to 10 chars
+    assert result[0]["plainEnglish"] == "Q4 PAT beats estimates"
+    assert result[0]["impact"] == "medium"

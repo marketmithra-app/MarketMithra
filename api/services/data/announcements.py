@@ -261,7 +261,7 @@ def get_announcements(symbol: str) -> list[dict]:
     # 4. Filter to meaningful categories, keep top 5.
     filtered = [
         {
-            "date": str(row.get("NEWS_DT", row.get("ANNOUNCEMENT_DATE", ""))[:10]),
+            "date": str(row.get("NEWS_DT") or row.get("ANNOUNCEMENT_DATE") or "")[:10],
             "category": str(row.get("CATEGORYNAME", "")),
             "title": str(row.get("HEADLINE", row.get("SLONGNAME", ""))),
         }
