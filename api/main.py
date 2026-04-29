@@ -44,7 +44,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from services.data import get_delivery_series, delivery_trend, get_nse_ohlcv
+from services.data import get_delivery_series, delivery_trend, get_nse_ohlcv, get_announcements
 from services.ai import get_ai_news, get_spend_today, get_ai_synthesis
 from services.core import (
     ema, clamp, relative_strength, ema_stack,
@@ -631,6 +631,15 @@ def movers(
         key=lambda x: (not x["verdict_changed"], -abs(x["prob_delta"]))
     )
     return result[:limit]
+
+
+@app.get("/announcements/{symbol}")
+async def announcements_endpoint(symbol: str):
+    """Return recent BSE corporate announcements for a Nifty 50 stock."""
+    return {
+        "symbol": symbol.upper(),
+        "announcements": get_announcements(symbol.upper()),
+    }
 
 
 # ─────────────────────────── verdict history ───────────────────────────────

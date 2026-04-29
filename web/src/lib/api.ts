@@ -1,4 +1,4 @@
-import type { StockSnapshot } from "./types";
+import type { StockSnapshot, AnnouncementsResult } from "./types";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
@@ -60,5 +60,16 @@ export async function searchRemote(
     return res.json();
   } catch {
     return [];
+  }
+}
+
+export async function fetchAnnouncements(symbol: string): Promise<AnnouncementsResult> {
+  const base = process.env.NEXT_PUBLIC_API_BASE ?? "";
+  try {
+    const res = await fetch(`${base}/announcements/${encodeURIComponent(symbol)}`);
+    if (!res.ok) return { symbol, announcements: [] };
+    return res.json() as Promise<AnnouncementsResult>;
+  } catch {
+    return { symbol, announcements: [] };
   }
 }

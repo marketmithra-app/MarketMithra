@@ -1,7 +1,7 @@
 "use client";
 
 import { Handle, Position } from "reactflow";
-import type { AiNewsResult } from "@/lib/types";
+import type { AiNewsResult, AiNewsHeadline } from "@/lib/types";
 
 // Score → visual theme (matches the other indicator nodes' colour language)
 function theme(score: number, isFallback: boolean) {
@@ -55,18 +55,51 @@ function theme(score: number, isFallback: boolean) {
   };
 }
 
+function hasConflict(newsScore: number, fusionProbability: number): boolean {
+  const technicalScore = fusionProbability * 2 - 1; // map [0,1] → [-1,1]
+  return (newsScore > 0.4 && technicalScore < -0.4)
+      || (newsScore < -0.4 && technicalScore > 0.4);
+}
+
+const TREND_LABEL: Record<string, string> = {
+  improving:     "↑ Improving",
+  deteriorating: "↓ Deteriorating",
+  stable:        "→ Stable",
+};
+
+const TREND_COLOR: Record<string, string> = {
+  improving:     "text-teal-400",
+  deteriorating: "text-rose-400",
+  stable:        "text-slate-500",
+};
+
+const SENTIMENT_DOT: Record<string, string> = {
+  bullish: "text-emerald-400",
+  bearish: "text-rose-400",
+  neutral: "text-slate-500",
+};
+
 export default function AiNewsNode({
   data,
 }: {
-  data: { label: string; result: AiNewsResult; symbol: string };
+  data: {
+    label: string;
+    result: AiNewsResult;
+    symbol: string;
+    fusionProbability: number;
+  };
 }) {
-  const { result, symbol } = data;
-  const { score, label, summary, headlines, source } = result;
+  const { result, symbol, fusionProbability } = data;
+  const {
+    score, label, summary, whyItMatters, watchOut,
+    headlines, trend, source,
+  } = result;
   const isFallback = source === "fallback";
   const t = theme(score, isFallback);
+  const conflict = !isFallback && hasConflict(score, fusionProbability);
 
-  // Score bar: diverging from centre — same pattern as other signal bars
-  const barPct  = Math.abs(score) * 50;  // 0..50%
+  // Score bar: diverging from centre
+  const barPct  = Math.abs(score) * 50;
   const barLeft = score < 0;
 
   return (
@@ -82,12 +115,19 @@ export default function AiNewsNode({
           <span>🤖</span>
           <span>AI News</span>
         </div>
-        <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${t.badge}`}>
-          {label}
-        </span>
+        <div className="flex items-center gap-1">
+          {!isFallback && (
+            <span className={`text-[8px] font-semibold ${TREND_COLOR[trend] ?? "text-slate-500"}`}>
+              {TREND_LABEL[trend] ?? "→ Stable"}
+            </span>
+          )}
+          <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${t.badge}`}>
+            {label}
+          </span>
+        </div>
       </div>
 
-      {/* Symbol + score number (big metric row — matches RS/Delivery style) */}
+      {/* Symbol + score number */}
       <div className="flex items-baseline justify-between mt-1">
         <span className="text-[10px] font-mono text-slate-400">{symbol}</span>
         <span className={`text-2xl font-mono ${t.text}`}>
@@ -119,6 +159,22 @@ export default function AiNewsNode({
         {summary}
       </div>
 
+      {/* Why it matters */}
+      {!isFallback && whyItMatters && (
+        <div className="text-[10px] text-teal-300 leading-snug mb-0.5 flex gap-1">
+          <span className="shrink-0">💡</span>
+          <span>{whyItMatters}</span>
+        </div>
+      )}
+
+      {/* Watch out */}
+      {!isFallback && watchOut && (
+        <div className="text-[10px] text-amber-300 leading-snug mb-1 flex gap-1">
+          <span className="shrink-0">⚠</span>
+          <span>{watchOut}</span>
+        </div>
+      )}
+
       {/* Expandable headlines */}
       {!isFallback && headlines.length > 0 && (
         <details className="group border-t border-slate-800/70">
@@ -127,16 +183,31 @@ export default function AiNewsNode({
             {headlines.length} headlines
           </summary>
           <ul className="space-y-1 pb-1">
-            {headlines.map((h, i) => (
+            {headlines.map((h: AiNewsHeadline, i: number) => (
               <li
                 key={i}
-                className="text-[9px] text-slate-400 leading-snug line-clamp-2 border-l-2 border-slate-700 pl-1.5"
+                className="text-[9px] text-slate-400 leading-snug border-l-2 border-slate-700 pl-1.5 flex items-start gap-1"
               >
-                {h}
+                <span className={`shrink-0 ${SENTIMENT_DOT[h.sentiment] ?? "text-slate-500"}`}>●</span>
+                <span className="flex-1 line-clamp-2">{h.title}</span>
+                {h.impact === "high" && (
+                  <span className="shrink-0 text-[8px] font-bold text-rose-400">HIGH</span>
+                )}
+                {h.impact === "medium" && (
+                  <span className="shrink-0 text-[8px] font-bold text-slate-400">MED</span>
+                )}
               </li>
             ))}
           </ul>
         </details>
+      )}
+
+      {/* Conflict badge */}
+      {conflict && (
+        <div className="mt-1 flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 rounded px-2 py-0.5">
+          <span className="text-amber-400">⚡</span>
+          <span className="text-[9px] font-semibold text-amber-400">Conflicts with technical signal</span>
+        </div>
       )}
 
       {/* Footer */}
