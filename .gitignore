@@ -39,6 +39,7 @@ web/.env.*.local
 
 # ── API runtime data (generated at runtime, never commit) ─────────────────────
 api/.cache/
+api/services/**/.cache/
 api/data/*.db
 api/data/*.db-shm
 api/data/*.db-wal
@@ -68,3 +69,4 @@ yarn-debug.log*
 yarn-error.log*
 
 .vercel
+.env*.local

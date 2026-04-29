@@ -24,7 +24,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from anthropic import Anthropic
+from anthropic import Anthropic, RateLimitError
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ _FAILURE_TTL = 60 * 15         # 15 min — let transient errors self-heal
 
 _COST_INPUT = 1.0 / 1_000_000
 _COST_OUTPUT = 5.0 / 1_000_000
+_RATE_LIMIT_TTL = 60 * 2   # 2 min — retry sooner after a 429
 
 _CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 _lock = Lock()
@@ -206,12 +207,45 @@ Return ONLY this JSON (no markdown, no explanation outside it):
   "stop": <nearest downside support from the price levels above as a plain number, no ₹>
 }}"""
 
+    msg = None
+    for _attempt in range(3):
+        try:
+            msg = _client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=300,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            break
+        except RateLimitError as e:
+            if _attempt < 2:
+                wait = 2.0 * (2 ** _attempt)  # 2s then 4s
+                log.warning(f"ai_synthesis 429 for {sym}, retry {_attempt + 1} in {wait:.0f}s")
+                time.sleep(wait)
+                continue
+            log.warning(f"ai_synthesis rate-limited for {sym} after 3 attempts: {e}")
+            result = _fallback("rate limited — retry shortly")
+            # Backdate ts so this entry expires in _RATE_LIMIT_TTL, not _FAILURE_TTL
+            cache_ts = now - (_FAILURE_TTL - _RATE_LIMIT_TTL)
+            with _lock:
+                _CACHE[sym] = (cache_ts, result)
+                _save_to_disk()
+            return result
+        except Exception as e:
+            log.warning(f"ai_synthesis failed for {sym}: {e}")
+            result = _fallback("AI synthesis unavailable")
+            with _lock:
+                _CACHE[sym] = (now, result)
+                _save_to_disk()
+            return result
+
+    if msg is None:
+        result = _fallback("AI synthesis unavailable")
+        with _lock:
+            _CACHE[sym] = (now, result)
+            _save_to_disk()
+        return result
+
     try:
-        msg = _client.messages.create(
-            model="claude-haiku-4-5",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}],
-        )
         raw = msg.content[0].text.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
@@ -225,8 +259,8 @@ Return ONLY this JSON (no markdown, no explanation outside it):
         _track_spend(in_tok, out_tok)
 
     except Exception as e:
-        log.warning(f"ai_synthesis failed for {sym}: {e}")
-        result = _fallback("AI synthesis unavailable")
+        log.warning(f"ai_synthesis parse failed for {sym}: {e}")
+        result = _fallback("AI synthesis parse error")
         with _lock:
             _CACHE[sym] = (now, result)
             _save_to_disk()
