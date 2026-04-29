@@ -59,12 +59,22 @@ export interface VolumeVwapResult {
   label: string;
 }
 
+// Per-headline structured sentiment (replaces raw string[] in AiNewsResult)
+export interface AiNewsHeadline {
+  title: string;
+  sentiment: "bullish" | "bearish" | "neutral";
+  impact: "high" | "medium" | "low";
+}
+
 // AI-powered news sentiment via Claude claude-haiku-4-5.
 export interface AiNewsResult {
   score: number;          // -1..1
   label: string;          // "Very Bullish" | "Bullish" | "Neutral" | "Bearish" | "Very Bearish"
-  summary: string;        // one-sentence digest
-  headlines: string[];    // top 5 raw headlines for the tooltip
+  summary: string;        // one-sentence digest (≤ 25 words)
+  whyItMatters: string;   // why this moves the stock (≤ 20 words); "" when fallback
+  watchOut: string;       // bear case / key risk (≤ 20 words); "" when fallback
+  headlines: AiNewsHeadline[];   // top 3 structured headlines
+  trend: "improving" | "stable" | "deteriorating";  // 3-day velocity
   source: "claude-haiku" | "fallback";
 }
 
@@ -144,4 +154,18 @@ export interface StockSnapshot {
     priceLevels?: PriceLevels;
   };
   asOf: string;
+}
+
+// BSE corporate announcement (from /announcements/{symbol})
+export interface BSEAnnouncement {
+  date: string;         // ISO date, e.g. "2026-04-28"
+  category: string;     // e.g. "Dividend", "Results"
+  title: string;        // raw BSE title
+  plainEnglish: string; // Haiku-translated one-liner
+  impact: "high" | "medium" | "low";
+}
+
+export interface AnnouncementsResult {
+  symbol: string;
+  announcements: BSEAnnouncement[];
 }
