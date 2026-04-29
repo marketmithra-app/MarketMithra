@@ -39,7 +39,7 @@ _COST_INPUT_PER_TOKEN = 1.0 / 1_000_000
 _COST_OUTPUT_PER_TOKEN = 5.0 / 1_000_000
 
 # ── in-memory state (mirrors on-disk cache) ────────────────────────────────
-_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}   # sym -> (ts, result)
+_CACHE: dict[str, tuple[float, dict[str, Any], list]] = {}  # sym -> (ts, result, score_history)
 _SPEND: dict[str, dict[str, float]] = {}               # YYYY-MM-DD -> counts
 _lock = Lock()
 
@@ -54,7 +54,8 @@ def _load_from_disk() -> None:
             return
         data = json.loads(_CACHE_PATH.read_text())
         for sym, entry in (data.get("cache") or {}).items():
-            _CACHE[sym] = (float(entry["ts"]), entry["result"])
+            history = entry.get("score_history", [])  # migration safety
+            _CACHE[sym] = (float(entry["ts"]), entry["result"], history)
         for day, counts in (data.get("spend") or {}).items():
             _SPEND[day] = counts
     except Exception as e:
@@ -65,7 +66,10 @@ def _save_to_disk() -> None:
     try:
         _CACHE_DIR.mkdir(parents=True, exist_ok=True)
         payload = {
-            "cache": {s: {"ts": ts, "result": res} for s, (ts, res) in _CACHE.items()},
+            "cache": {
+                s: {"ts": ts, "result": res, "score_history": hist}
+                for s, (ts, res, hist) in _CACHE.items()
+            },
             "spend": _SPEND,
         }
         _CACHE_PATH.write_text(json.dumps(payload, indent=2))
@@ -74,6 +78,19 @@ def _save_to_disk() -> None:
 
 
 _load_from_disk()
+
+
+# ── velocity helper ─────────────────────────────────────────────────────────
+def _compute_trend(score_history: list) -> str:
+    """Derive sentiment velocity from score_history [(date_str, score), ...]."""
+    if len(score_history) < 3:
+        return "stable"
+    last3 = [s for _, s in score_history[-3:]]
+    if last3[0] < last3[1] < last3[2]:
+        return "improving"
+    if last3[0] > last3[1] > last3[2]:
+        return "deteriorating"
+    return "stable"
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────
@@ -93,7 +110,10 @@ def _neutral(reason: str = "no news data") -> dict[str, Any]:
         "score": 0.0,
         "label": "Neutral",
         "summary": reason,
+        "whyItMatters": "",
+        "watchOut": "",
         "headlines": [],
+        "trend": "stable",
         "source": "fallback",
     }
 
@@ -146,11 +166,12 @@ def get_ai_news(symbol: str) -> dict[str, Any]:
     with _lock:
         hit = _CACHE.get(sym)
     if hit:
-        age = now - hit[0]
-        is_failure = hit[1].get("source") == "fallback"
+        ts, cached_result, _hist = hit
+        age = now - ts
+        is_failure = cached_result.get("source") == "fallback"
         ttl = _FAILURE_TTL if is_failure else _SUCCESS_TTL
         if age < ttl:
-            return hit[1]
+            return cached_result
 
     # 2. Daily spend cap — belt-and-suspenders protection.
     if _cap_reached():
@@ -162,7 +183,7 @@ def get_ai_news(symbol: str) -> dict[str, Any]:
     if client is None:
         result = _neutral("ANTHROPIC_API_KEY not set")
         with _lock:
-            _CACHE[sym] = (now, result)
+            _CACHE[sym] = (now, result, [])
             _save_to_disk()
         return result
 
@@ -177,7 +198,7 @@ def get_ai_news(symbol: str) -> dict[str, Any]:
         log.warning(f"yfinance news fetch failed for {sym}: {e}")
         result = _neutral("news fetch failed")
         with _lock:
-            _CACHE[sym] = (now, result)
+            _CACHE[sym] = (now, result, [])
             _save_to_disk()
         return result
 
@@ -191,29 +212,33 @@ def get_ai_news(symbol: str) -> dict[str, Any]:
     if not headlines:
         result = _neutral("no recent headlines found")
         with _lock:
-            _CACHE[sym] = (now, result)
+            _CACHE[sym] = (now, result, [])
             _save_to_disk()
         return result
 
     bullet_list = "\n".join(f"- {h}" for h in headlines)
     prompt = f"""You are a financial news analyst covering Indian equities (NSE/BSE).
-Analyse the following recent headlines for the stock symbol {sym} and return a JSON object with these exact keys:
+Analyse the following recent headlines for the stock symbol {sym} and return a JSON object with EXACTLY these keys:
 
-- "score": a float from -1.0 (very bearish) to +1.0 (very bullish), 0.0 = neutral
+- "score": float from -1.0 (very bearish) to +1.0 (very bullish), 0.0 = neutral
 - "label": one of "Very Bullish", "Bullish", "Neutral", "Bearish", "Very Bearish"
-- "summary": a single sentence (≤ 20 words) capturing the dominant sentiment and why
+- "summary": ≤ 25 words — dominant sentiment and why
+- "whyItMatters": ≤ 20 words — one sentence on why this moves the stock price
+- "watchOut": ≤ 20 words — the bear case or key risk in this news
+- "headlines": array of the top 3 most impactful headlines, each with:
+    "title" (string), "sentiment" ("bullish"|"bearish"|"neutral"), "impact" ("high"|"medium"|"low")
 
 Headlines:
 {bullet_list}
 
 Respond ONLY with the JSON object. No explanation outside the JSON.
-Example: {{"score": 0.4, "label": "Bullish", "summary": "Strong quarterly results and new contract wins drive positive sentiment."}}"""
+Example: {{"score": 0.4, "label": "Bullish", "summary": "Strong results beat expectations.", "whyItMatters": "Margin recovery signals FY27 earnings upgrade cycle.", "watchOut": "Global slowdown may pressure Q1 guidance.", "headlines": [{{"title": "Q4 profit beats", "sentiment": "bullish", "impact": "high"}}]}}"""
 
     # 5. Call Claude.
     try:
         msg = client.messages.create(
             model="claude-haiku-4-5",
-            max_tokens=150,
+            max_tokens=400,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = msg.content[0].text.strip()
@@ -225,23 +250,45 @@ Example: {{"score": 0.4, "label": "Bullish", "summary": "Strong quarterly result
         score = float(max(-1.0, min(1.0, parsed.get("score", 0.0))))
         label = str(parsed.get("label", "Neutral"))
         summary = str(parsed.get("summary", ""))
+        why_it_matters = str(parsed.get("whyItMatters", ""))
+        watch_out = str(parsed.get("watchOut", ""))
+        raw_headlines = parsed.get("headlines", [])
+        structured_headlines = [
+            {
+                "title": str(h.get("title", "")),
+                "sentiment": h.get("sentiment", "neutral"),
+                "impact": h.get("impact", "medium"),
+            }
+            for h in raw_headlines[:3]
+            if isinstance(h, dict)
+        ]
 
         # 6. Track spend + log it.
         usage = getattr(msg, "usage", None)
         in_tok = int(getattr(usage, "input_tokens", 0)) if usage else 0
         out_tok = int(getattr(usage, "output_tokens", 0)) if usage else 0
+
+        # Update score_history for velocity.
+        today_iso = _today()
         with _lock:
             _track_spend(in_tok, out_tok)
             today = _SPEND[_today()]
+            _, _, old_history = _CACHE.get(sym, (0, {}, []))
+        score_history = [e for e in old_history if e[0] != today_iso]
+        score_history.append([today_iso, score])
+        score_history = score_history[-4:]  # keep last 4 entries
+
+        trend = _compute_trend(score_history)
+
         log.info(
-            f"ai_news {sym} · in={in_tok} out={out_tok} · "
+            f"ai_news {sym} · in={in_tok} out={out_tok} · trend={trend} · "
             f"today: {today['calls']} calls, ${today['usd']:.4f}"
         )
     except Exception as e:
         log.warning(f"Claude news scoring failed for {sym}: {e}")
         result = _neutral("AI scoring unavailable")
         with _lock:
-            _CACHE[sym] = (now, result)
+            _CACHE[sym] = (now, result, [])
             _save_to_disk()
         return result
 
@@ -249,10 +296,13 @@ Example: {{"score": 0.4, "label": "Bullish", "summary": "Strong quarterly result
         "score": round(score, 2),
         "label": label,
         "summary": summary,
-        "headlines": headlines[:5],
+        "whyItMatters": why_it_matters,
+        "watchOut": watch_out,
+        "headlines": structured_headlines,
+        "trend": trend,
         "source": "claude-haiku",
     }
     with _lock:
-        _CACHE[sym] = (now, result)
+        _CACHE[sym] = (now, result, score_history)
         _save_to_disk()
     return result
