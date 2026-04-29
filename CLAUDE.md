@@ -25,7 +25,7 @@ npm run build
 npm run lint                     # ESLint + TypeScript
 ```
 
-Copy `web/.env.local.example` to `web/.env.local` and fill in Supabase, Stripe, and API base URL. See `SUPABASE_SETUP.md` for full third-party setup (schema SQL, auth config, Stripe webhooks).
+Copy `web/.env.local.example` to `web/.env.local` and fill in Supabase, Razorpay, and API base URL. See `SUPABASE_SETUP.md` for full third-party setup (schema SQL, auth config, Razorpay webhooks). **Payment gateway is Razorpay (UPI-native, not Stripe).**
 
 > **Warning (from AGENTS.md):** Next.js v16 has breaking changes. Before touching the frontend, read the relevant docs inside `web/node_modules/next/` rather than relying on training data.
 
@@ -55,12 +55,16 @@ api/  (FastAPI + uvicorn, Python 3, yfinance, Anthropic SDK)
 ### Frontend key files
 | File | Responsibility |
 |---|---|
-| `web/src/app/canvas/page.tsx` | Interactive signal-flow page (main product view) |
+| `web/src/app/canvas/page.tsx` | Canvas landing — search / redirect to symbol |
+| `web/src/app/canvas/[symbol]/page.tsx` | Interactive signal-flow page (main product view) |
 | `web/src/components/CanvasMain.tsx` | ReactFlow graph container, wires nodes together |
 | `web/src/components/nodes/*.tsx` | 8 indicator node types (PriceNode, EmaStackNode, DeliveryNode, …) |
 | `web/src/lib/api.ts` | Typed fetch wrappers for backend endpoints |
 | `web/src/lib/types.ts` | Shared TypeScript interfaces (`StockSnapshot`, `Verdict`, etc.) |
-| `web/src/lib/usageCap.ts` | Free-tier 5 analyses/day rate limiting |
+| `web/src/lib/usageCap.ts` | Free-tier weekly analysis cap (not daily) |
+| `web/src/proxy.ts` | Next.js 16 routing proxy (auth gating for canvas, dna, panic, watchlist, admin) |
+| `web/src/app/api/consume-analysis/route.ts` | Decrements free-tier weekly cap on each analysis |
+| `web/src/app/api/judgement/route.ts` | Records user agree/disagree on a verdict |
 
 ### Critical implementation details
 
@@ -69,6 +73,10 @@ api/  (FastAPI + uvicorn, Python 3, yfinance, Anthropic SDK)
 **NSE Bhavcopy cache** — In-RAM DataFrame keyed by date; avoids repeated disk reads across 49 stocks × 60-day lookback.
 
 **AI cost controls** — Both `ai_news.py` and `ai_synthesis.py` check `AI_NEWS_DAILY_CAP` (default 100 calls/day). Disk-persisted JSON caches use 12 h TTL on success, 15 min on failure (self-healing transient errors).
+
+**Auth gating (Sprint 2)** — Anonymous users get a free weekly cap of analyses tracked via Supabase. The proxy (`proxy.ts`) gates `/canvas`, `/dna`, `/panic`, `/watchlist`, `/admin`. Supabase SSR uses `@supabase/ssr` v0.10+ with `getAll()/setAll()` cookie API — never the deprecated `get/set` pattern.
+
+**Production deployment** — Live at `https://marketmithraapp.vercel.app` (Vercel, auto-deploys from `master`). API at Railway (`marketmithra-production.up.railway.app`). GitHub repo is public (`marketmithra-app/marketmithra-app`).
 
 **Sigmoid fusion** — `services/core/fusion.py` fuses six weighted scores into a probability via `fuse_scores()`. Verdict thresholds: ≥0.60 → BUY, 0.40–0.60 → HOLD, ≤0.40 → SELL. `FUSION_WEIGHTS` owned by FinanceAgent.
 
