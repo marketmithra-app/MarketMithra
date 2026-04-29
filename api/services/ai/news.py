@@ -268,17 +268,29 @@ Example: {{"score": 0.4, "label": "Bullish", "summary": "Strong results beat exp
         in_tok = int(getattr(usage, "input_tokens", 0)) if usage else 0
         out_tok = int(getattr(usage, "output_tokens", 0)) if usage else 0
 
-        # Update score_history for velocity.
+        # Build score_history and write result — all under one lock to prevent TOCTOU.
         today_iso = _today()
+        result = {
+            "score": round(score, 2),
+            "label": label,
+            "summary": summary,
+            "whyItMatters": why_it_matters,
+            "watchOut": watch_out,
+            "headlines": structured_headlines,
+            "trend": "stable",  # placeholder; overwritten below
+            "source": "claude-haiku",
+        }
         with _lock:
             _track_spend(in_tok, out_tok)
             today = _SPEND[_today()]
             _, _, old_history = _CACHE.get(sym, (0, {}, []))
-        score_history = [e for e in old_history if e[0] != today_iso]
-        score_history.append([today_iso, score])
-        score_history = score_history[-4:]  # keep last 4 entries
-
-        trend = _compute_trend(score_history)
+            score_history = [e for e in old_history if e[0] != today_iso]
+            score_history.append([today_iso, score])
+            score_history = score_history[-4:]
+            trend = _compute_trend(score_history)
+            result["trend"] = trend
+            _CACHE[sym] = (now, result, score_history)
+            _save_to_disk()
 
         log.info(
             f"ai_news {sym} · in={in_tok} out={out_tok} · trend={trend} · "
@@ -292,17 +304,4 @@ Example: {{"score": 0.4, "label": "Bullish", "summary": "Strong results beat exp
             _save_to_disk()
         return result
 
-    result = {
-        "score": round(score, 2),
-        "label": label,
-        "summary": summary,
-        "whyItMatters": why_it_matters,
-        "watchOut": watch_out,
-        "headlines": structured_headlines,
-        "trend": trend,
-        "source": "claude-haiku",
-    }
-    with _lock:
-        _CACHE[sym] = (now, result, score_history)
-        _save_to_disk()
     return result
