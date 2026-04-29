@@ -181,7 +181,9 @@ headers = {
 Uses `httpx` with a 10s timeout. **Dependency check required:** verify `httpx` is in `api/requirements.txt`; add `httpx>=0.27` if missing. Fallback on any exception returns `[]`.
 
 Meaningful categories to keep (filter out the rest):
-`{"Results", "Dividend", "Board Meeting", "Buyback", "Rights Issue", "Bonus Issue", "QIP", "AGM", "EGM", "Allotment"}`
+`{"Results", "Dividend", "Board Meeting", "Buyback", "Rights Issue", "Bonus Issue", "QIP", "Merger/Amalgamation", "Scheme of Arrangement"}`
+
+*Finance Agent review: Dropped `AGM`, `EGM`, `Allotment` (procedural/duplicate coverage, crowd out high-signal items). Added `Merger/Amalgamation` / `Scheme of Arrangement` — M&A is among the highest-impact events for retail traders and was missing. Check the BSE API's exact category string for M&A when implementing.*
 
 Fetch last 10 announcements, filter to meaningful categories, keep top 5.
 
@@ -318,10 +320,12 @@ Node `data` object gains `fusionProbability: number` (passed from CanvasMain).
 ```typescript
 function hasConflict(newsScore: number, fusionProbability: number): boolean {
   const technicalScore = fusionProbability * 2 - 1; // map [0,1] → [-1,1]
-  return (newsScore > 0.3 && technicalScore < -0.2)
-      || (newsScore < -0.3 && technicalScore > 0.2);
+  return (newsScore > 0.4 && technicalScore < -0.4)
+      || (newsScore < -0.4 && technicalScore > 0.4);
 }
 ```
+
+*Finance Agent review: Thresholds tightened to symmetric ±0.4. The original 0.3 / -0.2 pair was asymmetric and would fire on signals barely outside the HOLD band, generating false conflict alerts on transition-zone stocks. Both sides now require a clearly directional signal (Bullish score > 0.4, fusion probability < 0.30 or > 0.70) before the badge appears.*
 
 ### 5.3 New UI rows (only rendered when `!isFallback`)
 
@@ -368,8 +372,8 @@ After building the edges array, find the edge from `aiNewsNode` to `fusionNode` 
 ```typescript
 const newsScore = snapshot.indicators.aiNews?.score ?? 0;
 const prob = snapshot.fusion.probability;
-const conflict = (newsScore > 0.3 && (prob * 2 - 1) < -0.2)
-              || (newsScore < -0.3 && (prob * 2 - 1) > 0.2);
+const conflict = (newsScore > 0.4 && (prob * 2 - 1) < -0.4)
+              || (newsScore < -0.4 && (prob * 2 - 1) > 0.4);
 
 // In the edges array for the aiNews→fusion edge:
 {
@@ -419,14 +423,17 @@ Footer: `"bse · 6h cache"` in slate-600
 
 ---
 
-## Finance Agent Review Checklist
+## Finance Agent Review — Findings Applied
 
-Before implementation, Finance Agent must confirm:
+All four items reviewed. Changes applied inline to the spec above.
 
-1. **Conflict threshold correctness** — Is `newsScore > 0.3 && technicalScore < -0.2` (and vice versa) a financially sound definition of divergence? Should the threshold be tighter (0.4) or looser?
-2. **`trend` usefulness** — Does 3-day velocity of news sentiment carry signal value for Indian equities, or is it noise given the 12h cache TTL?
-3. **BSE announcement categories** — Are the selected categories (`Results`, `Dividend`, `Board Meeting`, `Buyback`, `Rights Issue`, `Bonus Issue`, `QIP`, `AGM`, `EGM`, `Allotment`) the right ones to surface? Any critical categories missing?
-4. **`aiNews` fusion weight** — The weight stays at 0.10 in this sprint. Does a richer news signal justify increasing it? (Out of scope for this sprint but flag if urgent.)
+1. **Conflict threshold** ✅ Tightened to symmetric ±0.4. Original 0.3/-0.2 was asymmetric and too sensitive — would trigger on transition-zone stocks barely outside HOLD band.
+
+2. **`trend` usefulness** ✅ Keep as informational badge only. Given 12h cache TTL, 3-day history may be 2 actual observations for quiet stocks. Value exists for actively traded names; `"stable"` default when < 3 entries is the correct design. Do NOT add to fusion weighting without sample-size validation per symbol.
+
+3. **BSE categories** ✅ Dropped `AGM`, `EGM`, `Allotment` (procedural / duplicate). Added `Merger/Amalgamation` / `Scheme of Arrangement` — M&A is highest-impact for retail traders and was missing. Implementer must verify exact category string from BSE API.
+
+4. **`aiNews` fusion weight** ✅ Stays at 0.10. Finance Agent recommends 0.15 as the ceiling for a future sprint, taking 0.05 from `volume` (weakest signal for Indian markets). Prerequisites before increasing: 60-day backtest, sentiment bias audit (mean score across Nifty 50 over 30 days should be < 0.1), and timeliness check (< 40% of cache hits older than 6h).
 
 ---
 
